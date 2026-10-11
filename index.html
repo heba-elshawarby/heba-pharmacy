@@ -1,9 +1,207 @@
-<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102a43"><meta name="description" content="تطبيق صيدلية د. هبه الشواربي لطلب الأدوية"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><title>صيدلية د. هبه الشواربي</title><style>:root{--n:#102a43;--p:#d83b82;--bg:#f6f8fb}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}.top{background:linear-gradient(135deg,#102a43,#1769aa);color:#fff;padding:22px 16px 28px;border-radius:0 0 28px 28px}.wrap{max-width:900px;margin:auto;padding:16px}.brand{display:flex;gap:12px;align-items:center}.logo{width:55px;height:55px;background:white;border-radius:16px;display:grid;place-items:center;color:var(--p);font-size:31px;font-weight:bold}.brand h1{font-size:20px;margin:0}.brand p{margin:5px 0;font-size:12px;color:#dbe8f2}.hero{margin-top:22px}.hero h2{margin:0 0 7px;font-size:25px}.hero p{margin:0;font-size:13px;color:#dbe8f2}.search{margin-top:18px;background:#fff;padding:8px;border-radius:16px;display:flex;gap:8px}.search input{flex:1;border:0;background:#f4f6f8;border-radius:11px;padding:13px;outline:0}.search button,.send{border:0;background:var(--p);color:white;border-radius:11px;padding:11px 16px;font-weight:bold}.chips{display:flex;gap:8px;overflow:auto;margin:15px 0}.chip{white-space:nowrap;border:1px solid #e0e7ed;background:white;border-radius:999px;padding:9px 14px;color:var(--n)}.chip.active{background:#fff0f6;border-color:#e8a9c6;color:#a5225f}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.card{background:white;border:1px solid #e6ebf0;border-radius:18px;padding:12px;box-shadow:0 6px 18px #102a4310}.pic{height:125px;background:#f7f9fb;border-radius:13px;display:grid;place-items:center;font-size:38px;color:#c8d1d9;overflow:hidden}.pic img{width:100%;height:100%;object-fit:contain}.name{font-weight:bold;line-height:1.45;margin-top:9px;min-height:40px}.sub{font-size:11px;color:#687b8b;margin-top:4px;min-height:16px}.price{font-weight:bold;color:var(--n);margin-top:7px}.avail{font-size:11px;color:#17865b;margin-top:4px}.add{width:100%;margin-top:9px;padding:10px;border:0;border-radius:11px;background:var(--n);color:#fff;font-weight:bold}.add:disabled{background:#aeb8c1}.bar{position:sticky;bottom:12px;margin-top:18px;background:var(--n);color:white;padding:12px 14px;border-radius:17px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 10px 28px #102a4350}.bar button{border:0;background:var(--p);color:white;padding:10px 15px;border-radius:10px;font-weight:bold}.badge{background:#fff;color:var(--p);border-radius:50%;min-width:24px;height:24px;display:inline-grid;place-items:center}.modal{display:none;position:fixed;inset:0;background:#071b2aaa;z-index:5;align-items:flex-end;padding:10px}.modal.show{display:flex}.sheet{background:#fff;width:min(600px,100%);max-height:92vh;overflow:auto;border-radius:24px;padding:18px}.close{float:left;border:0;background:#edf1f4;border-radius:9px;width:36px;height:36px}.item{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e7edf2;padding:11px 0}.qty button{border:0;background:#edf1f4;border-radius:8px;width:30px;height:30px}.form{display:grid;gap:10px;margin-top:16px}.form label{font-size:12px;font-weight:bold}.form input,.form textarea{width:100%;margin-top:5px;border:1px solid #dfe6ec;border-radius:11px;padding:11px}.form textarea{min-height:70px}.empty{text-align:center;color:#718392;padding:35px;grid-column:1/-1}.success{text-align:center;padding:25px}@media(min-width:650px){.grid{grid-template-columns:repeat(3,1fr)}} </style></head><body><header class="top"><div class="wrap"><div class="brand"><div class="logo">✚</div><div><h1>صيدلية د. هبه الشواربي</h1><p>خدمتك الدوائية بسهولة</p></div></div><div class="hero"><h2>اطلب دواءك بسهولة</h2><p>ابحث عن الدواء، أضفه للطلب، وأرسله للصيدلية.</p></div><div class="search"><input id="q" placeholder="اسم الدواء أو المادة الفعالة أو الباركود"><button onclick="render()">بحث</button></div></div></header><main class="wrap"><div class="chips"><button class="chip active" onclick="setF('all',this)">كل الأدوية</button><button class="chip" onclick="setF('available',this)">المتاح فقط</button><button class="chip" onclick="setF('otc',this)">OTC</button></div><div id="status" style="font-size:12px;color:#687b8b;margin:8px 2px">جاري تحميل الأدوية...</div><section id="grid" class="grid"></section><div class="bar"><div>🛒 الطلب <span id="count" class="badge">0</span></div><button onclick="openCart()">عرض الطلب</button></div></main><div id="modal" class="modal"><div class="sheet"><button class="close" onclick="closeCart()">×</button><h3>مراجعة الطلب</h3><div id="cart"></div><div id="checkout"><div class="form"><p style="font-size:13px;color:#687b8b;margin:0">لإرسال الطلب ومتابعته، أنشئ حسابًا بالبريد الإلكتروني وكلمة مرور. تسجيل الهاتف برسالة SMS مؤجل حاليًا.</p><label>البريد الإلكتروني<input id="email" type="email" autocomplete="email" required></label><label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required></label><div style="display:flex;gap:8px"><button type="button" class="send" onclick="authMode='login';alert('سيتم تسجيل الدخول بالحساب الموجود عند إرسال الطلب')">لدي حساب بالفعل</button><button type="button" class="send" onclick="authMode='signup';alert('سيتم إنشاء حساب جديد عند إرسال الطلب')">حساب جديد</button></div><label>الاسم<input id="name"></label><label>رقم الهاتف<input id="phone" inputmode="tel"></label><label>العنوان<input id="address"></label><label>ملاحظات (اختياري)<textarea id="notes"></textarea></label><button class="send" onclick="sendOrder()">إرسال الطلب للصيدلية</button></div></div><div id="success" class="success" style="display:none"><h3>تم إرسال طلبك بنجاح ✅</h3><p>الطلب وصل إلى الصيدلية.</p><button class="send" onclick="closeCart()">العودة للأدوية</button></div></div></div><script>
+
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102a43">
+<meta name="description" content="تطبيق صيدلية د. هبه الشواربي لطلب الأدوية">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>صيدلية د. هبه الشواربي</title>
+<style>
+:root{--n:#102a43;--p:#d83b82;--bg:#f6f8fb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}
+.top{background:linear-gradient(135deg,#102a43,#1769aa);color:#fff;padding:22px 16px 28px;border-radius:0 0 28px 28px}
+.wrap{max-width:900px;margin:auto;padding:16px}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:55px;height:55px;background:white;border-radius:16px;display:grid;place-items:center;color:var(--p);font-size:31px;font-weight:bold}
+.brand h1{font-size:20px;margin:0}
+.brand p{margin:5px 0;font-size:12px;color:#dbe8f2}
+.hero{margin-top:22px}
+.hero h2{margin:0 0 7px;font-size:25px}
+.hero p{margin:0;font-size:13px;color:#dbe8f2}
+.search{margin-top:18px;background:#fff;padding:8px;border-radius:16px;display:flex;gap:8px}
+.search input{flex:1;border:0;background:#f4f6f8;border-radius:11px;padding:13px;outline:0}
+.search button,.send{border:0;background:var(--p);color:white;border-radius:11px;padding:11px 16px;font-weight:bold}
+.chips{display:flex;gap:8px;overflow:auto;margin:15px 0}
+.chip{white-space:nowrap;border:1px solid #e0e7ed;background:white;border-radius:999px;padding:9px 14px;color:var(--n)}
+.chip.active{background:#fff0f6;border-color:#e8a9c6;color:#a5225f}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.card{background:white;border:1px solid #e6ebf0;border-radius:18px;padding:12px;box-shadow:0 6px 18px #102a4310}
+.pic{height:125px;background:#f7f9fb;border-radius:13px;display:grid;place-items:center;font-size:38px;color:#c8d1d9;overflow:hidden}
+.pic img{width:100%;height:100%;object-fit:contain}
+.name{font-weight:bold;line-height:1.45;margin-top:9px;min-height:40px}
+.sub{font-size:11px;color:#687b8b;margin-top:4px;min-height:16px}
+.price{font-weight:bold;color:var(--n);margin-top:7px}
+.avail{font-size:11px;color:#17865b;margin-top:4px}
+.add{width:100%;margin-top:9px;padding:10px;border:0;border-radius:11px;background:var(--n);color:#fff;font-weight:bold}
+.add:disabled{background:#aeb8c1}
+.bar{position:sticky;bottom:12px;margin-top:18px;background:var(--n);color:white;padding:12px 14px;border-radius:17px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 10px 28px #102a4350}
+.bar button{border:0;background:var(--p);color:white;padding:10px 15px;border-radius:10px;font-weight:bold}
+.badge{background:#fff;color:var(--p);border-radius:50%;min-width:24px;height:24px;display:inline-grid;place-items:center}
+.modal{display:none;position:fixed;inset:0;background:#071b2aaa;z-index:5;align-items:flex-end;padding:10px}
+.modal.show{display:flex}
+.sheet{background:#fff;width:min(600px,100%);max-height:92vh;overflow:auto;border-radius:24px;padding:18px}
+.close{float:left;border:0;background:#edf1f4;border-radius:9px;width:36px;height:36px}
+.item{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #e7edf2;padding:11px 0}
+.qty button{border:0;background:#edf1f4;border-radius:8px;width:30px;height:30px}
+.form{display:grid;gap:10px;margin-top:16px}
+.form label{font-size:12px;font-weight:bold}
+.form input,.form textarea{width:100%;margin-top:5px;border:1px solid #dfe6ec;border-radius:11px;padding:11px}
+.form textarea{min-height:70px}
+.empty{text-align:center;color:#718392;padding:35px;grid-column:1/-1}
+.success{text-align:center;padding:25px}
+@media(min-width:650px){.grid{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<header class="top">
+<div class="wrap">
+<div class="brand"><div class="logo">✚</div><div><h1>صيدلية د. هبه الشواربي</h1><p>خدمتك الدوائية بسهولة</p></div></div>
+<div class="hero"><h2>اطلب دواءك بسهولة</h2><p>ابحث عن الدواء، أضفه للطلب، وأرسله للصيدلية.</p></div>
+<div class="search"><input id="q" placeholder="اسم الدواء أو المادة الفعالة أو الباركود"><button onclick="render()">بحث</button></div>
+</div>
+</header>
+<main class="wrap">
+<div class="chips">
+<button class="chip active" onclick="setF('all',this)">كل الأدوية</button>
+<button class="chip" onclick="setF('available',this)">المتاح فقط</button>
+<button class="chip" onclick="setF('otc',this)">OTC</button>
+</div>
+<div id="status" style="font-size:12px;color:#687b8b;margin:8px 2px">جاري تحميل الأدوية...</div>
+<section id="grid" class="grid"></section>
+<div class="bar"><div>🛒 الطلب <span id="count" class="badge">0</span></div><button onclick="openCart()">عرض الطلب</button></div>
+</main>
+<div id="modal" class="modal">
+<div class="sheet">
+<button class="close" onclick="closeCart()">×</button>
+<h3>مراجعة الطلب</h3>
+<div id="cart"></div>
+<div id="checkout">
+<div class="form">
+<p style="font-size:13px;color:#687b8b;margin:0">لإرسال الطلب ومتابعته، أنشئ حسابًا بالبريد الإلكتروني وكلمة مرور. تسجيل الهاتف برسالة SMS مؤجل حاليًا.</p>
+<label>البريد الإلكتروني<input id="email" type="email" autocomplete="email" required></label>
+<label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+<div style="display:flex;gap:8px">
+<button type="button" class="send" onclick="authMode='login';alert('سيتم تسجيل الدخول بالحساب الموجود عند إرسال الطلب')">لدي حساب بالفعل</button>
+<button type="button" class="send" onclick="authMode='signup';alert('سيتم إنشاء حساب جديد عند إرسال الطلب')">حساب جديد</button>
+</div>
+<label>الاسم<input id="name"></label>
+<label>رقم الهاتف<input id="phone" inputmode="tel"></label>
+<label>العنوان<input id="address"></label>
+<label>ملاحظات (اختياري)<textarea id="notes"></textarea></label>
+<button class="send" onclick="sendOrder()">إرسال الطلب للصيدلية</button>
+</div>
+</div>
+<div id="success" class="success" style="display:none"><h3>تم إرسال طلبك بنجاح ✅</h3><p>الطلب وصل إلى الصيدلية.</p><button class="send" onclick="closeCart()">العودة للأدوية</button></div>
+</div>
+</div>
+
+<script>
 const CART_KEY='shawarbi_cart_v1';
-const U='https://hggwmyqxwgqrcckyboof.supabase.co',K='sb_publishable_HVkyu5uHtpXkJfZPvQdAgA_MjgdX5Wv';let meds=[],cart=loadCart(),filter='all',sending=false,session=null,authMode='signup';const $=x=>document.getElementById(x);
+
+// المشروع القديم: قراءة بيانات الأدوية فقط
+const OLD_U='https://rlqkyfwnkhaaykcgkhhm.supabase.co';
+const OLD_K='sb_publishable_LJu9hzDHEE8WCZDhIJzfXg_DaQP5GpU';
+
+// المشروع الجديد: حسابات العملاء والطلبات
+const NEW_U='https://hggwmyqxwgqrcckyboof.supabase.co';
+const NEW_K='sb_publishable_HVkyu5uHtpXkJfZPvQdAgA_MjgdX5Wv';
+
+let meds=[],cart=loadCart(),filter='all',sending=false,session=null,authMode='signup';
+const $=x=>document.getElementById(x);
+
 function loadCart(){try{return JSON.parse(localStorage.getItem(CART_KEY)||'[]')}catch(e){return []}}
 function saveCart(){try{localStorage.setItem(CART_KEY,JSON.stringify(cart))}catch(e){}}
 function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function setStatus(t){$('status').textContent=t}const norm=x=>String(x??'').toLowerCase().replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').trim();const pick=(o,a)=>{for(const k of a)if(o?.[k]!=null&&String(o[k]).trim())return o[k];return ''};async function api(path,opt={}){let r=await fetch(U+path,{...opt,headers:{apikey:K,Authorization:'Bearer '+(session?.access_token||K),'Content-Type':'application/json',...(opt.headers||{})}});if(!r.ok){const t=await r.text();throw Error(t||('HTTP '+r.status))}const t=await r.text();return t?JSON.parse(t):null}function map(d){return{raw:d,id:d?.id,name:pick(d,['name','name_ar','commercial_name']),active:pick(d,['active_ingredient','active','scientific_name']),price:pick(d,['selling_price','price']),qty:pick(d,['stock_quantity','quantity','qty']),img:pick(d,['image_url','image']),barcode:pick(d,['barcode','gtin']),code:pick(d,['internal_code','code']),otc:pick(d,['otc','is_otc','category'])}}function avail(m){return parseFloat(String(m.qty).replace(',','.'))>0}async function load(){try{setStatus('جاري تحميل الأدوية...');meds=await api('/rest/v1/medicines?select=*&limit=1000');render();setStatus('تم تحميل '+meds.length+' دواء');}catch(e){console.error(e);render();setStatus(navigator.onLine?'تعذر الاتصال بقاعدة البيانات. حاول مرة أخرى.':'لا يوجد اتصال بالإنترنت. سيتم عرض البيانات المحفوظة إن وُجدت.')}}function render(){let q=norm($('q').value);let a=meds.map(map).filter(m=>(filter==='all'||filter==='available'&&avail(m)||filter==='otc'&&norm(m.otc).includes('otc'))&&(!q||[m.name,m.active,m.barcode,m.code].some(v=>norm(v).includes(q))));$('grid').innerHTML=a.length?a.slice(0,80).map(card).join(''):'<div class="empty">لم نجد دواء مطابقًا.</div>'}function card(m){let key=String(m.raw.id??m.name),exists=cart.find(x=>String(x.raw?.id??x.name)===key);return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div><div class="sub">${esc(m.active||'')}</div><div class="price">${m.price?esc(m.price)+' ج.م':'السعر عند الطلب'}</div><div class="avail">${avail(m)?'متوفر':'غير متوفر'}</div><button class="add" ${avail(m)?'':'disabled'} data-key="${esc(key)}" onclick="addByKey(this.dataset.key)">${exists?'✓ تمت الإضافة':'إضافة للطلب'}</button></article>`}function addByKey(key){let m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));if(m)add(m.raw)}
-function addByKey(key){let m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));if(m)add(m.raw)}function add(raw){let m=map(raw),key=String(raw.id??m.name),x=cart.find(i=>String(i.raw?.id??i.name)===key);x?x.qty++:cart.push({raw,name:m.name||'دواء',price:m.price,qty:1});saveCart();update();render()}function update(){$('count').textContent=cart.reduce((a,x)=>a+x.qty,0);saveCart()}function openCart(){$('modal').classList.add('show');$('checkout').style.display='block';$('success').style.display='none';draw()}function closeCart(){$('modal').classList.remove('show')}function draw(){$('cart').innerHTML=cart.length?cart.map((x,i)=>`<div class="item"><b>${x.name}</b><div class="qty"><button onclick="chg(${i},-1)">−</button> ${x.qty} <button onclick="chg(${i},1)">+</button></div></div>`).join(''):'<div class="empty">السلة فارغة.</div>'}function chg(i,n){cart[i].qty+=n;if(cart[i].qty<=0)cart.splice(i,1);update();draw();render()}async function authCustomer(){const email=$('email').value.trim(),password=$('password').value;if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');let endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';let r=await fetch(U+endpoint,{method:'POST',headers:{apikey:K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});let data=await r.json().catch(()=>({}));if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البريد وكلمة المرور.');if(!data.access_token){throw Error('تم إنشاء الحساب. افحص بريدك إذا طُلب تأكيده، ثم اختر تسجيل الدخول.')}session=data;return data}
-async function sendOrder(){if(sending)return;if(!cart.length)return alert('أضف دواء أولًا');let name=$('name').value.trim(),phone=$('phone').value.trim(),address=$('address').value.trim();if(name.length<2||!/^[-+()\s\d]{7,20}$/.test(phone)||address.length<5)return alert('تأكد من الاسم ورقم الهاتف والعنوان');sending=true;let btn=document.querySelector('#checkout .send');if(btn){btn.disabled=true;btn.textContent='جاري إرسال الطلب...'}try{if(!session?.access_token)await authCustomer();let items=cart.map(x=>({name:x.name,quantity:x.qty,price:x.price||null,medicine_id:x.raw?.id??null}));let total=cart.reduce((sum,x)=>sum+(parseFloat(String(x.price||'0').replace(',','.').replace(/[^0-9.]/g,''))||0)*x.qty,0);await api('/rest/v1/orders',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({customer_name:name,customer_phone:phone,address,notes:$('notes').value.trim()||null,items,total,status:'new',user_id:session.user?.id})});cart=[];saveCart();update();$('checkout').style.display='none';$('success').style.display='block'}catch(e){alert(e.message||'تعذر إرسال الطلب. تحقق من البيانات والإنترنت ثم حاول مرة أخرى.');console.error(e)}finally{sending=false;if(btn){btn.disabled=false;btn.textContent='إرسال الطلب للصيدلية'}}} function setF(f,b){filter=f;document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()}window.addEventListener('online',()=>load());window.addEventListener('offline',()=>setStatus('أنت غير متصل بالإنترنت'));$('q').addEventListener('input',render);update();load();</script><script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}</script></body></html>
+function setStatus(t){$('status').textContent=t}
+const norm=x=>String(x??'').toLowerCase().replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').trim();
+const pick=(o,a)=>{for(const k of a)if(o?.[k]!=null&&String(o[k]).trim())return o[k];return ''};
+
+async function apiAt(base,key,path,opt={},token=null){
+ let r=await fetch(base+path,{...opt,headers:{apikey:key,Authorization:'Bearer '+(token||key),'Content-Type':'application/json',...(opt.headers||{})}});
+ if(!r.ok){const t=await r.text();throw Error(t||('HTTP '+r.status))}
+ const t=await r.text();return t?JSON.parse(t):null;
+}
+function apiOld(path,opt={}){return apiAt(OLD_U,OLD_K,path,opt)}
+function apiNew(path,opt={}){return apiAt(NEW_U,NEW_K,path,opt,session?.access_token||null)}
+
+function map(d){return{raw:d,id:d?.id,name:pick(d,['name','name_ar','commercial_name']),active:pick(d,['active_ingredient','active','scientific_name']),price:pick(d,['selling_price','price']),qty:pick(d,['stock_quantity','quantity','qty']),img:pick(d,['image_url','image']),barcode:pick(d,['barcode','gtin']),code:pick(d,['internal_code','code']),otc:pick(d,['otc','is_otc','category'])}}
+function avail(m){return parseFloat(String(m.qty).replace(',','.'))>0}
+
+async function load(){
+ try{
+  setStatus('جاري تحميل الأدوية...');
+  meds=await apiOld('/rest/v1/medicines?select=*&limit=1000');
+  render();
+  setStatus('تم تحميل '+meds.length+' دواء');
+ }catch(e){
+  console.error(e);render();
+  setStatus(navigator.onLine?'تعذر الاتصال بقاعدة البيانات. حاول مرة أخرى.':'لا يوجد اتصال بالإنترنت. سيتم عرض البيانات المحفوظة إن وُجدت.')
+ }
+}
+
+function render(){
+ let q=norm($('q').value);
+ let a=meds.map(map).filter(m=>(filter==='all'||filter==='available'&&avail(m)||filter==='otc'&&norm(m.otc).includes('otc'))&&(!q||[m.name,m.active,m.barcode,m.code].some(v=>norm(v).includes(q))));
+ $('grid').innerHTML=a.length?a.slice(0,80).map(card).join(''):'<div class="empty">لم نجد دواء مطابقًا.</div>';
+}
+function card(m){
+ let key=String(m.raw.id??m.name),exists=cart.find(x=>String(x.raw?.id??x.name)===key);
+ return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div><div class="sub">${esc(m.active||'')}</div><div class="price">${m.price?esc(m.price)+' ج.م':'السعر عند الطلب'}</div><div class="avail">${avail(m)?'متوفر':'غير متوفر'}</div><button class="add" ${avail(m)?'':'disabled'} data-key="${esc(key)}" onclick="addByKey(this.dataset.key)">${exists?'✓ تمت الإضافة':'إضافة للطلب'}</button></article>`;
+}
+function addByKey(key){let m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));if(m)add(m.raw)}
+function add(raw){
+ let m=map(raw),key=String(raw.id??m.name),x=cart.find(i=>String(i.raw?.id??i.name)===key);
+ x?x.qty++:cart.push({raw,name:m.name||'دواء',price:m.price,qty:1});
+ saveCart();update();render();
+}
+function update(){$('count').textContent=cart.reduce((a,x)=>a+x.qty,0);saveCart()}
+function openCart(){$('modal').classList.add('show');$('checkout').style.display='block';$('success').style.display='none';draw()}
+function closeCart(){$('modal').classList.remove('show')}
+function draw(){$('cart').innerHTML=cart.length?cart.map((x,i)=>`<div class="item"><b>${x.name}</b><div class="qty"><button onclick="chg(${i},-1)">−</button> ${x.qty} <button onclick="chg(${i},1)">+</button></div></div>`).join(''):'<div class="empty">السلة فارغة.</div>'}
+function chg(i,n){cart[i].qty+=n;if(cart[i].qty<=0)cart.splice(i,1);update();draw();render()}
+
+async function authCustomer(){
+ const email=$('email').value.trim(),password=$('password').value;
+ if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');
+ let endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';
+ let r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+ let data=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البريد وكلمة المرور.');
+ if(!data.access_token)throw Error('تم إنشاء الحساب. افحص بريدك إذا طُلب تأكيده، ثم اختر تسجيل الدخول.');
+ session=data;return data;
+}
+
+async function sendOrder(){
+ if(sending)return;
+ if(!cart.length)return alert('أضف دواء أولًا');
+ let name=$('name').value.trim(),phone=$('phone').value.trim(),address=$('address').value.trim();
+ if(name.length<2||!/^[-+()\s\d]{7,20}$/.test(phone)||address.length<5)return alert('تأكد من الاسم ورقم الهاتف والعنوان');
+ sending=true;
+ let btn=document.querySelector('#checkout .send');
+ if(btn){btn.disabled=true;btn.textContent='جاري إرسال الطلب...'}
+ try{
+  if(!session?.access_token)await authCustomer();
+  let items=cart.map(x=>({name:x.name,quantity:x.qty,price:x.price||null,medicine_id:x.raw?.id??null}));
+  let total=cart.reduce((sum,x)=>sum+(parseFloat(String(x.price||'0').replace(',','.').replace(/[^0-9.]/g,''))||0)*x.qty,0);
+  await apiNew('/rest/v1/orders',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({customer_name:name,customer_phone:phone,address,notes:$('notes').value.trim()||null,items,total,status:'new',user_id:session.user?.id})});
+  cart=[];saveCart();update();$('checkout').style.display='none';$('success').style.display='block';
+ }catch(e){
+  alert(e.message||'تعذر إرسال الطلب. تحقق من البيانات والإنترنت ثم حاول مرة أخرى.');console.error(e);
+ }finally{
+  sending=false;if(btn){btn.disabled=false;btn.textContent='إرسال الطلب للصيدلية'}
+ }
+}
+function setF(f,b){filter=f;document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()}
+window.addEventListener('online',()=>load());
+window.addEventListener('offline',()=>setStatus('أنت غير متصل بالإنترنت'));
+$('q').addEventListener('input',render);update();load();
+</script>
+<script>
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}
+</script>
+</body>
+</html>
