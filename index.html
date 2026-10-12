@@ -168,7 +168,10 @@ async function authCustomer(){
  const email=$('email').value.trim(),password=$('password').value;
  if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');
  let endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';
- let r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+ const payload = authMode==='login'
+   ? {email,password}
+   : {email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/'}};
+  let r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify(payload)});
  let data=await r.json().catch(()=>({}));
  if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البريد وكلمة المرور.');
  if(!data.access_token)throw Error('تم إنشاء الحساب. افحص بريدك إذا طُلب تأكيده، ثم اختر تسجيل الدخول.');
