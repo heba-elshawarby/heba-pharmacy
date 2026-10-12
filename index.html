@@ -92,10 +92,11 @@ body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}
 <p style="font-size:13px;color:#687b8b;margin:0">لإرسال الطلب ومتابعته، أنشئ حسابًا بالبريد الإلكتروني وكلمة مرور. تسجيل الهاتف برسالة SMS مؤجل حاليًا.</p>
 <label>البريد الإلكتروني<input id="email" type="email" autocomplete="email" required></label>
 <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
-<div style="display:flex;gap:8px">
-<button type="button" class="send" onclick="authMode='login';alert('سيتم تسجيل الدخول بالحساب الموجود عند إرسال الطلب')">لدي حساب بالفعل</button>
-<button type="button" class="send" onclick="authMode='signup';alert('سيتم إنشاء حساب جديد عند إرسال الطلب')">حساب جديد</button>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button type="button" class="send" onclick="authMode='login';alert('أدخل البريد الإلكتروني وكلمة المرور ثم أرسل الطلب لتسجيل الدخول')">تسجيل الدخول</button>
+<button type="button" class="send" onclick="authMode='signup';alert('أدخل بياناتك ثم أرسل الطلب لإنشاء حساب جديد')">إنشاء حساب جديد</button>
 </div>
+<button type="button" class="send" style="background:#fff;color:#253247;border:1px solid #d7dee8;width:100%;margin-top:8px" onclick="signInWithGoogle()">🌐 المتابعة باستخدام Google</button>
 <label>الاسم<input id="name"></label>
 <label>رقم الهاتف<input id="phone" inputmode="tel"></label>
 <label>العنوان<input id="address"></label>
@@ -204,6 +205,12 @@ function openCart(){$('modal').classList.add('show');$('checkout').style.display
 function closeCart(){$('modal').classList.remove('show')}
 function draw(){$('cart').innerHTML=cart.length?cart.map((x,i)=>`<div class="item"><b>${x.name}</b><div class="qty"><button onclick="chg(${i},-1)">−</button> ${x.qty} <button onclick="chg(${i},1)">+</button></div></div>`).join(''):'<div class="empty">السلة فارغة.</div>'}
 function chg(i,n){cart[i].qty+=n;if(cart[i].qty<=0)cart.splice(i,1);update();draw();render()}
+
+async function signInWithGoogle(){
+  const redirectTo='https://heba-elshawarby.github.io/heba-pharmacy/';
+  const url=NEW_U+'/auth/v1/authorize?provider=google&redirect_to='+encodeURIComponent(redirectTo);
+  window.location.href=url;
+}
 
 async function authCustomer(){
  const email=$('email').value.trim(),password=$('password').value;
