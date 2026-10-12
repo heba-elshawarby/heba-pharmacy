@@ -71,6 +71,14 @@ body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}
 <button class="chip" onclick="setF('otc',this)">OTC</button>
 </div>
 <div id="status" style="font-size:12px;color:#687b8b;margin:8px 2px">جاري تحميل الأدوية...</div>
+<div class="card" style="margin:12px 0">
+<h3 style="margin:4px 0 10px">📦 طلباتي</h3>
+<p style="font-size:12px;color:#687b8b;margin:0 0 10px">سجّل الدخول لمتابعة حالة طلباتك.</p>
+<div class="form" style="margin-top:8px">
+<label>البريد الإلكتروني<input id="ordersEmail" type="email" autocomplete="email"></label>
+<label>كلمة المرور<input id="ordersPassword" type="password" autocomplete="current-password" minlength="8"></label>
+<button class="send" type="button" onclick="loadMyOrders()">عرض طلباتي</button>
+</div><div id="myOrders" style="margin-top:12px"></div></div>
 <section id="grid" class="grid"></section>
 <div class="bar"><div>🛒 الطلب <span id="count" class="badge">0</span></div><button onclick="openCart()">عرض الطلب</button></div>
 </main>
@@ -110,7 +118,40 @@ const OLD_K='sb_publishable_LJu9hzDHEE8WCZDhIJzfXg_DaQP5GpU';
 const NEW_U='https://hggwmyqxwgqrcckyboof.supabase.co';
 const NEW_K='sb_publishable_HVkyu5uHtpXkJfZPvQdAgA_MjgdX5Wv';
 
-let meds=[],cart=loadCart(),filter='all',sending=false,session=null,authMode='signup';
+let meds=[],cart=loadCart(),filter='all',sending=false,session=loadSession(),authMode='signup';
+const SESSION_KEY='shawarbi_auth_session_v1';
+function loadSession(){try{return JSON.parse(localStorage.getItem('shawarbi_auth_session_v1')||'null')}catch(e){return null}}
+function saveSession(){try{if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY)}catch(e){}}
+function updateAuthUI(){
+ const authFields=document.querySelector('#checkout .form');
+ if(!authFields)return;
+ let note=$('authState');
+ if(!note){note=document.createElement('p');note.id='authState';note.style.cssText='font-size:13px;padding:10px;border-radius:10px;background:#eef7f2;color:#176044';authFields.prepend(note);}
+ if(session?.access_token&&session.user?.email){
+   note.innerHTML='مسجّل الدخول باسم <b>'+esc(session.user.email)+'</b> — يمكنك إرسال الطلبات ومتابعتها دون تسجيل الدخول كل مرة. <button type="button" class="send" style="margin-right:8px" onclick="logoutCustomer()">تسجيل الخروج</button>';
+   const email=$('email'),pass=$('password');
+   if(email)email.closest('label').style.display='none';
+   if(pass)pass.closest('label').style.display='none';
+   const choices=authFields.querySelector('div[style*="display:flex"]');if(choices)choices.style.display='none';
+ }else{
+   note.textContent='سجّل الدخول أو أنشئ حسابًا لمرة واحدة، وبعدها سيحتفظ الموقع بتسجيل دخولك على هذا الجهاز.';
+   const email=$('email'),pass=$('password');
+   if(email)email.closest('label').style.display='';
+   if(pass)pass.closest('label').style.display='';
+   const choices=authFields.querySelector('div[style*="display:flex"]');if(choices)choices.style.display='flex';
+ }
+}
+function logoutCustomer(){session=null;saveSession();updateAuthUI();alert('تم تسجيل الخروج.');}
+async function ensureSessionFresh(){
+ if(!session?.access_token)return;
+ const expiresAt=Number(session.expires_at||0);
+ if(expiresAt && expiresAt*1000>Date.now()+60000)return;
+ if(!session.refresh_token){session=null;saveSession();return;}
+ const r=await fetch(NEW_U+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:session.refresh_token})});
+ const data=await r.json().catch(()=>({}));
+ if(!r.ok||!data.access_token){session=null;saveSession();return;}
+ session=data;saveSession();
+}
 const $=x=>document.getElementById(x);
 
 function loadCart(){try{return JSON.parse(localStorage.getItem(CART_KEY)||'[]')}catch(e){return []}}
@@ -126,7 +167,7 @@ async function apiAt(base,key,path,opt={},token=null){
  const t=await r.text();return t?JSON.parse(t):null;
 }
 function apiOld(path,opt={}){return apiAt(OLD_U,OLD_K,path,opt)}
-function apiNew(path,opt={}){return apiAt(NEW_U,NEW_K,path,opt,session?.access_token||null)}
+async function apiNew(path,opt={}){await ensureSessionFresh();return apiAt(NEW_U,NEW_K,path,opt,session?.access_token||null)}
 
 function map(d){return{raw:d,id:d?.id,name:pick(d,['name','name_ar','commercial_name']),active:pick(d,['active_ingredient','active','scientific_name']),price:pick(d,['selling_price','price']),qty:pick(d,['stock_quantity','quantity','qty']),img:pick(d,['image_url','image']),barcode:pick(d,['barcode','gtin']),code:pick(d,['internal_code','code']),otc:pick(d,['otc','is_otc','category'])}}
 function avail(m){return parseFloat(String(m.qty).replace(',','.'))>0}
@@ -159,7 +200,7 @@ function add(raw){
  saveCart();update();render();
 }
 function update(){$('count').textContent=cart.reduce((a,x)=>a+x.qty,0);saveCart()}
-function openCart(){$('modal').classList.add('show');$('checkout').style.display='block';$('success').style.display='none';draw()}
+function openCart(){$('modal').classList.add('show');$('checkout').style.display='block';$('success').style.display='none';draw();updateAuthUI()}
 function closeCart(){$('modal').classList.remove('show')}
 function draw(){$('cart').innerHTML=cart.length?cart.map((x,i)=>`<div class="item"><b>${x.name}</b><div class="qty"><button onclick="chg(${i},-1)">−</button> ${x.qty} <button onclick="chg(${i},1)">+</button></div></div>`).join(''):'<div class="empty">السلة فارغة.</div>'}
 function chg(i,n){cart[i].qty+=n;if(cart[i].qty<=0)cart.splice(i,1);update();draw();render()}
@@ -168,14 +209,32 @@ async function authCustomer(){
  const email=$('email').value.trim(),password=$('password').value;
  if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');
  let endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';
- const payload = authMode==='login'
-   ? {email,password}
-   : {email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/'}};
+ const payload = authMode==='login' ? {email,password} : {email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/'}};
   let r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify(payload)});
  let data=await r.json().catch(()=>({}));
  if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البريد وكلمة المرور.');
  if(!data.access_token)throw Error('تم إنشاء الحساب. افحص بريدك إذا طُلب تأكيده، ثم اختر تسجيل الدخول.');
- session=data;return data;
+ session=data;saveSession();updateAuthUI();return data;
+}
+
+
+function statusArabic(s){const m={new:'جديد',processing:'قيد التجهيز',shipped:'تم الشحن',completed:'مكتمل',cancelled:'ملغي'};return m[String(s||'').toLowerCase()]||String(s||'غير محدد');}
+async function authCustomerWith(email,password){
+ const r=await fetch(NEW_U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok||!d.access_token)throw Error(d.msg||d.message||d.error_description||'بيانات الدخول غير صحيحة.');
+ session=d;saveSession();updateAuthUI();return d;
+}
+async function loadMyOrders(){
+ const email=$('ordersEmail').value.trim(),password=$('ordersPassword').value,box=$('myOrders');
+ if(!email||password.length<8){alert('اكتب البريد الإلكتروني وكلمة المرور (8 أحرف على الأقل).');return;}
+ box.innerHTML='<p>جاري تحميل طلباتك...</p>';
+ try{
+  await authCustomerWith(email,password);
+  const rows=await apiNew('/rest/v1/orders?select=id,items,total,status,created_at&user_id=eq.'+encodeURIComponent(session.user.id)+'&order=created_at.desc');
+  if(!rows||!rows.length){box.innerHTML='<p class="empty">لا توجد طلبات مسجلة على هذا الحساب حتى الآن.</p>';return;}
+  box.innerHTML=rows.map(o=>{const its=Array.isArray(o.items)?o.items:[];const detail=its.map(i=>esc(i.name||'دواء')+' × '+esc(i.quantity||1)).join('، ');const date=o.created_at?new Date(o.created_at).toLocaleString('ar-EG'):'';return `<div class="item" style="display:block"><b>طلب #${esc(o.id)}</b><div style="margin-top:6px">الحالة: <b>${esc(statusArabic(o.status))}</b></div><div style="font-size:12px;margin-top:5px">${detail}</div><div style="font-size:12px;color:#687b8b;margin-top:5px">${esc(date)} — الإجمالي: ${esc(o.total||0)} ج.م</div></div>`;}).join('');
+ }catch(e){box.innerHTML='<p style="color:#b42318">تعذر تحميل الطلبات: '+esc(e.message||'تحقق من بيانات الدخول')+'</p>';}
 }
 
 async function sendOrder(){
@@ -201,7 +260,7 @@ async function sendOrder(){
 function setF(f,b){filter=f;document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()}
 window.addEventListener('online',()=>load());
 window.addEventListener('offline',()=>setStatus('أنت غير متصل بالإنترنت'));
-$('q').addEventListener('input',render);update();load();
+$('q').addEventListener('input',render);update();updateAuthUI();ensureSessionFresh().then(updateAuthUI).catch(()=>{});load();
 </script>
 <script>
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}
