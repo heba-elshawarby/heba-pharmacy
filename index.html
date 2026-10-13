@@ -54,9 +54,36 @@ body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}
 .empty{text-align:center;color:#718392;padding:35px;grid-column:1/-1}
 .success{text-align:center;padding:25px}
 @media(min-width:650px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+.auth-gate{position:fixed;inset:0;z-index:20;background:linear-gradient(145deg,#102a43,#1769aa);display:flex;align-items:center;justify-content:center;padding:18px;overflow:auto}
+.auth-panel{width:min(460px,100%);background:#fff;border-radius:24px;padding:24px;box-shadow:0 20px 60px #001a3344}
+.auth-brand{text-align:center;margin-bottom:20px}.auth-logo{width:64px;height:64px;border-radius:18px;background:#fff0f6;color:#d83b82;display:grid;place-items:center;font-size:34px;margin:0 auto 10px}
+.auth-tabs{display:flex;gap:8px;margin:16px 0}.auth-tabs button{flex:1;border:1px solid #dfe6ec;background:#f6f8fb;border-radius:11px;padding:11px;font-weight:bold;color:#102a43}.auth-tabs button.active{background:#d83b82;color:white;border-color:#d83b82}
+.auth-panel input{width:100%;padding:12px;border:1px solid #dfe6ec;border-radius:11px;margin:5px 0 12px;font:inherit}.auth-panel label{font-size:13px;font-weight:bold}.auth-panel .send{width:100%;margin-top:8px}.auth-msg{font-size:13px;line-height:1.6;margin-top:12px;color:#b42318}.auth-msg.ok{color:#16734a}
+body.locked{overflow:hidden}
+
 </style>
 </head>
-<body>
+<body class="locked">
+
+<div id="authGate" class="auth-gate">
+ <section class="auth-panel">
+  <div class="auth-brand"><div class="auth-logo">✚</div><h1 style="margin:0;font-size:22px">صيدلية د. هبه الشواربي</h1><p style="color:#687b8b;font-size:13px">أهلاً بك — سجّل الدخول أو أنشئ حسابك للمتابعة</p></div>
+  <div class="auth-tabs"><button id="tabLogin" class="active" type="button" onclick="showAuthMode('login')">تسجيل الدخول</button><button id="tabSignup" type="button" onclick="showAuthMode('signup')">إنشاء حساب</button></div>
+  <div id="signupFields" style="display:none">
+   <label>الاسم بالكامل<input id="gateName" autocomplete="name" placeholder="اسم العميل"></label>
+   <label>رقم الموبايل<input id="gatePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="01xxxxxxxxx"></label>
+  </div>
+  <label>البريد الإلكتروني<input id="gateEmail" type="email" autocomplete="email" placeholder="name@example.com"></label>
+  <label>كلمة المرور<input id="gatePassword" type="password" autocomplete="current-password" minlength="8" placeholder="8 أحرف على الأقل"></label>
+  <button id="authSubmit" class="send" type="button" onclick="submitGateAuth()">تسجيل الدخول</button>
+  <button id="forgotBtn" type="button" class="send" style="background:#1769aa" onclick="forgotPassword()">نسيت كلمة المرور؟</button>
+  <div id="gateMessage" class="auth-msg" role="status"></div>
+  <p style="font-size:11px;color:#687b8b;line-height:1.6;margin-bottom:0">بياناتك تستخدم لإنشاء حسابك ومتابعة طلباتك. لا تستخدم كلمة مرور بريدك الإلكتروني في أي مكان آخر.</p>
+ </section>
+</div>
+
+<div id="pharmacyApp" style="display:none">
 <header class="top">
 <div class="wrap">
 <div class="brand"><div class="logo">✚</div><div><h1>صيدلية د. هبه الشواربي</h1><p>خدمتك الدوائية بسهولة</p></div></div>
@@ -65,6 +92,7 @@ body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}
 </div>
 </header>
 <main class="wrap">
+<div id="customerWelcome" class="card" style="display:none;margin:12px 0"><b id="welcomeName"></b><div style="font-size:12px;color:#687b8b;margin-top:5px">رقم العميل: <b id="welcomeNumber"></b></div><button type="button" class="send" style="margin-top:10px" onclick="customerLogout()">تسجيل الخروج</button></div>
 <div class="chips">
 <button class="chip active" onclick="setF('all',this)">كل الأدوية</button>
 <button class="chip" onclick="setF('available',this)">المتاح فقط</button>
@@ -73,16 +101,13 @@ body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}
 <div id="status" style="font-size:12px;color:#687b8b;margin:8px 2px">جاري تحميل الأدوية...</div>
 <div class="card" style="margin:12px 0">
 <h3 style="margin:4px 0 10px">📦 طلباتي</h3>
-<p style="font-size:12px;color:#687b8b;margin:0 0 10px">سجّل الدخول ببريدك وكلمة المرور لمشاهدة طلباتك السابقة. رقم الموبايل يُحفظ ضمن ملف العميل.</p>
-<div class="form" style="margin-top:8px">
-<label>البريد الإلكتروني<input id="ordersEmail" type="email" autocomplete="email"></label>
-<label>كلمة المرور<input id="ordersPassword" type="password" autocomplete="current-password" minlength="8"></label>
-<button class="send" type="button" onclick="loadMyOrders()">تسجيل الدخول وعرض طلباتي</button>
-<button type="button" class="send" onclick="resetPassword()" style="background:#1769aa">نسيت كلمة المرور؟</button>
-</div><div id="myOrders" style="margin-top:12px"></div></div>
+<p id="ordersHint" style="font-size:12px;color:#687b8b;margin:0 0 10px">يتم عرض طلبات الحساب المسجّل تلقائيًا.</p>
+<button class="send" type="button" onclick="loadMyOrders()">تحديث طلباتي</button>
+<div id="myOrders" style="margin-top:12px"></div></div>
 <section id="grid" class="grid"></section>
 <div class="bar"><div>🛒 الطلب <span id="count" class="badge">0</span></div><button onclick="openCart()">عرض الطلب</button></div>
 </main>
+</div>
 <div id="modal" class="modal">
 <div class="sheet">
 <button class="close" onclick="closeCart()">×</button>
@@ -90,7 +115,7 @@ body{margin:0;background:var(--bg);font-family:Tahoma,Arial;color:#183044}
 <div id="cart"></div>
 <div id="checkout">
 <div class="form">
-<p style="font-size:13px;color:#687b8b;margin:0">أنشئ حسابًا بالبريد الإلكتروني ورقم الموبايل وكلمة مرور، أو سجّل الدخول بحسابك الحالي. يمكنك استعادة كلمة المرور عبر البريد الإلكتروني.</p>
+<p style="font-size:13px;color:#687b8b;margin:0">لإرسال الطلب ومتابعته، أنشئ حسابًا بالبريد الإلكتروني وكلمة مرور. تسجيل الهاتف برسالة SMS مؤجل حاليًا.</p>
 <label>البريد الإلكتروني<input id="email" type="email" autocomplete="email" required></label>
 <label>كلمة المرور<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
 <div style="display:flex;gap:8px">
@@ -130,7 +155,6 @@ function updateAuthUI(){
  if(!note){note=document.createElement('p');note.id='authState';note.style.cssText='font-size:13px;padding:10px;border-radius:10px;background:#eef7f2;color:#176044';authFields.prepend(note);}
  if(session?.access_token&&session.user?.email){
    note.innerHTML='مسجّل الدخول باسم <b>'+esc(session.user.email)+'</b> — يمكنك إرسال الطلبات ومتابعتها دون تسجيل الدخول كل مرة. <button type="button" class="send" style="margin-right:8px" onclick="logoutCustomer()">تسجيل الخروج</button>';
-   const nm=$('name'),ph=$('phone'); if(nm&&!nm.value)nm.value=session.user.user_metadata?.full_name||''; if(ph&&!ph.value)ph.value=session.user.user_metadata?.phone||'';
    const email=$('email'),pass=$('password');
    if(email)email.closest('label').style.display='none';
    if(pass)pass.closest('label').style.display='none';
@@ -155,6 +179,87 @@ async function ensureSessionFresh(){
  session=data;saveSession();
 }
 const $=x=>document.getElementById(x);
+
+
+let gateMode='login';
+const PENDING_PROFILE_KEY='shawarbi_pending_customer_profile_v1';
+function showAuthMode(mode){
+ gateMode=mode;
+ $('signupFields').style.display=mode==='signup'?'block':'none';
+ $('tabLogin').classList.toggle('active',mode==='login');$('tabSignup').classList.toggle('active',mode==='signup');
+ $('authSubmit').textContent=mode==='signup'?'إنشاء الحساب':'تسجيل الدخول';
+ $('forgotBtn').style.display=mode==='signup'?'none':'block';
+ $('gatePassword').autocomplete=mode==='signup'?'new-password':'current-password';
+ $('gateMessage').textContent='';$('gateMessage').className='auth-msg';
+}
+function gateMessage(text,ok=false){$('gateMessage').textContent=text;$('gateMessage').className='auth-msg'+(ok?' ok':'')}
+async function submitGateAuth(){
+ const email=$('gateEmail').value.trim(),password=$('gatePassword').value;
+ if(!email||!email.includes('@'))return gateMessage('اكتب بريدًا إلكترونيًا صحيحًا.');
+ if(password.length<8)return gateMessage('كلمة المرور يجب ألا تقل عن 8 أحرف.');
+ const btn=$('authSubmit');btn.disabled=true;btn.textContent='جارٍ التنفيذ...';
+ try{
+  let data;
+  if(gateMode==='signup'){
+   const fullName=$('gateName').value.trim(),phone=$('gatePhone').value.trim();
+   if(fullName.length<2)return gateMessage('اكتب اسم العميل بالكامل.');
+   if(!/^[-+()\s\d]{7,20}$/.test(phone))return gateMessage('اكتب رقم موبايل صحيحًا.');
+   try{localStorage.setItem(PENDING_PROFILE_KEY,JSON.stringify({full_name:fullName,phone}));}catch(e){}
+   const r=await fetch(NEW_U+'/auth/v1/signup',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/'}})});
+   data=await r.json().catch(()=>({}));
+   if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر إنشاء الحساب.');
+   if(!data.access_token||!data.user?.id){
+    gateMessage('تم إرسال طلب إنشاء الحساب. إذا كان تأكيد البريد مفعّلًا، افتح رسالة التأكيد أولًا ثم سجّل الدخول.');return;
+   }
+   session=data;saveSession();
+   await ensureCustomerProfile(fullName,phone);
+  }else{
+   const r=await fetch(NEW_U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+   data=await r.json().catch(()=>({}));
+   if(!r.ok||!data.access_token)throw Error(data.msg||data.message||data.error_description||'البريد أو كلمة المرور غير صحيحين.');
+   session=data;saveSession();
+  }
+  await enterPharmacy();
+ }catch(e){gateMessage(e.message||'حدث خطأ. حاول مرة أخرى.');}
+ finally{btn.disabled=false;btn.textContent=gateMode==='signup'?'إنشاء الحساب':'تسجيل الدخول';}
+}
+async function ensureCustomerProfile(fullName,phone){
+ const rows=await apiNew('/rest/v1/customers?select=user_id&user_id=eq.'+encodeURIComponent(session.user.id)+'&limit=1');
+ if(rows?.length)return;
+ await apiNew('/rest/v1/customers',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({user_id:session.user.id,full_name:fullName,phone})});
+}
+async function enterPharmacy(){
+ await ensureSessionFresh();
+ if(!session?.access_token||!session.user?.id)throw Error('تعذر تأكيد تسجيل الدخول. حاول مرة أخرى.');
+ // Hide the login gate only after a valid session is confirmed.
+ $('authGate').style.display='none';
+ $('pharmacyApp').style.display='block';
+ document.body.classList.remove('locked');
+ try{
+  let rows=await apiNew('/rest/v1/customers?select=customer_number,full_name,phone&user_id=eq.'+encodeURIComponent(session.user.id)+'&limit=1');
+  if(!rows?.length){
+   let pending=null;try{pending=JSON.parse(localStorage.getItem(PENDING_PROFILE_KEY)||'null')}catch(e){}
+   if(pending?.full_name&&pending?.phone){
+    await ensureCustomerProfile(pending.full_name,pending.phone);
+    rows=await apiNew('/rest/v1/customers?select=customer_number,full_name,phone&user_id=eq.'+encodeURIComponent(session.user.id)+'&limit=1');
+   }
+  }
+  if(rows?.length){$('customerWelcome').style.display='block';$('welcomeName').textContent='أهلاً، '+rows[0].full_name;$('welcomeNumber').textContent=String(rows[0].customer_number);try{localStorage.removeItem(PENDING_PROFILE_KEY)}catch(e){}}
+ }catch(e){console.warn('تعذر تحميل ملف العميل',e);gateMessage('تم تسجيل الدخول، لكن تعذر تحميل ملف العميل. راجع إعدادات جدول customers وسياساته.');}
+ updateAuthUI();
+ // Orders are tied to the active account and load automatically after sign-in.
+ await loadMyOrders();
+}
+function customerLogout(){session=null;saveSession();$('pharmacyApp').style.display='none';$('authGate').style.display='flex';document.body.classList.add('locked');showAuthMode('login');$('gatePassword').value='';}
+async function forgotPassword(){
+ const email=$('gateEmail').value.trim();
+ if(!email||!email.includes('@'))return gateMessage('اكتب بريدك الإلكتروني أولًا.');
+ try{
+  const r=await fetch(NEW_U+'/auth/v1/recover',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,redirect_to:'https://heba-elshawarby.github.io/heba-pharmacy/'})});
+  if(!r.ok){const d=await r.json().catch(()=>({}));throw Error(d.msg||d.message||'تعذر إرسال رابط الاستعادة.');}
+  gateMessage('لو كان البريد مسجلًا، ستصلك رسالة لاستعادة كلمة المرور. افحص صندوق الوارد والرسائل غير المرغوب فيها.',true);
+ }catch(e){gateMessage(e.message||'تعذر إرسال رابط الاستعادة.');}
+}
 
 function loadCart(){try{return JSON.parse(localStorage.getItem(CART_KEY)||'[]')}catch(e){return []}}
 function saveCart(){try{localStorage.setItem(CART_KEY,JSON.stringify(cart))}catch(e){}}
@@ -209,39 +314,14 @@ function chg(i,n){cart[i].qty+=n;if(cart[i].qty<=0)cart.splice(i,1);update();dra
 
 async function authCustomer(){
  const email=$('email').value.trim(),password=$('password').value;
- const fullName=$('name').value.trim(),phone=$('phone').value.trim();
- if(!email||!email.includes('@'))throw Error('اكتب بريدًا إلكترونيًا صحيحًا.');
- if(password.length<8)throw Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
- if(authMode==='signup'&&(fullName.length<2||!/^[-+()\s\d]{7,20}$/.test(phone)))throw Error('لإنشاء حساب جديد، اكتب الاسم ورقم الموبايل بشكل صحيح.');
- const endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';
- const payload=authMode==='login'?{email,password}:{email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/',data:{full_name:fullName,phone}}};
- const r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify(payload)});
- const data=await r.json().catch(()=>({}));
- if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البيانات وحاول مرة أخرى.');
- if(!data.access_token){throw Error('تم إنشاء الحساب. إذا طلب Supabase تأكيد البريد، افتح رسالة التأكيد ثم سجّل الدخول.');}
- session=data;saveSession();await ensureCustomerProfile(fullName,phone);updateAuthUI();return data;
-}
-async function ensureCustomerProfile(fullName='',phone=''){
- if(!session?.user?.id)return;
- try{
-  const existing=await apiNew('/rest/v1/customers?select=user_id&user_id=eq.'+encodeURIComponent(session.user.id)+'&limit=1');
-  if(existing&&existing.length)return;
-  const meta=session.user.user_metadata||{};
-  const finalName=(fullName||meta.full_name||'عميل الصيدلية').trim();
-  const finalPhone=(phone||meta.phone||'').trim();
-  if(!finalPhone)return;
-  await apiNew('/rest/v1/customers',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({user_id:session.user.id,full_name:finalName,phone:finalPhone})});
- }catch(e){console.warn('تعذر حفظ ملف العميل؛ يمكن إكماله لاحقًا:',e.message)}
-}
-async function resetPassword(){
- const email=($('email')?.value||$('ordersEmail')?.value||'').trim();
- if(!email||!email.includes('@')){alert('اكتب بريدك الإلكتروني أولًا في خانة البريد.');return;}
- try{
-  const r=await fetch(NEW_U+'/auth/v1/recover',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,redirect_to:'https://heba-elshawarby.github.io/heba-pharmacy/'})});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok)throw Error(d.msg||d.message||'تعذر إرسال رابط الاستعادة.');
-  alert('إذا كان البريد مسجلًا، فسيصلك رابط لاستعادة كلمة المرور. افحص صندوق الوارد والرسائل غير المرغوب فيها.');
- }catch(e){alert(e.message||'تعذر إرسال رابط الاستعادة.');}
+ if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');
+ let endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';
+ const payload = authMode==='login' ? {email,password} : {email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/'}};
+  let r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+ let data=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البريد وكلمة المرور.');
+ if(!data.access_token)throw Error('تم إنشاء الحساب. افحص بريدك إذا طُلب تأكيده، ثم اختر تسجيل الدخول.');
+ session=data;saveSession();updateAuthUI();return data;
 }
 
 
@@ -250,18 +330,19 @@ async function authCustomerWith(email,password){
  const r=await fetch(NEW_U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
  const d=await r.json().catch(()=>({}));
  if(!r.ok||!d.access_token)throw Error(d.msg||d.message||d.error_description||'بيانات الدخول غير صحيحة.');
- session=d;saveSession();await ensureCustomerProfile();updateAuthUI();return d;
+ session=d;saveSession();updateAuthUI();return d;
 }
 async function loadMyOrders(){
- const email=$('ordersEmail').value.trim(),password=$('ordersPassword').value,box=$('myOrders');
- if(!email||password.length<8){alert('اكتب البريد الإلكتروني وكلمة المرور (8 أحرف على الأقل).');return;}
+ const box=$('myOrders');
+ if(!session?.access_token||!session.user?.id){$('ordersHint').textContent='سجّل الدخول لعرض الطلبات المرتبطة بحسابك.';box.innerHTML='<p class="empty">لم يتم تسجيل الدخول.</p>';return;}
  box.innerHTML='<p>جاري تحميل طلباتك...</p>';
  try{
-  await authCustomerWith(email,password);
+  await ensureSessionFresh();
   const rows=await apiNew('/rest/v1/orders?select=id,items,total,status,created_at&user_id=eq.'+encodeURIComponent(session.user.id)+'&order=created_at.desc');
+  $('ordersHint').textContent='طلباتك المرتبطة بحسابك فقط.';
   if(!rows||!rows.length){box.innerHTML='<p class="empty">لا توجد طلبات مسجلة على هذا الحساب حتى الآن.</p>';return;}
-  box.innerHTML=rows.map(o=>{const its=Array.isArray(o.items)?o.items:[];const detail=its.map(i=>esc(i.name||'دواء')+' × '+esc(i.quantity||1)).join('، ');const date=o.created_at?new Date(o.created_at).toLocaleString('ar-EG'):'';return `<div class="item" style="display:block"><b>طلب #${esc(o.id)}</b><div style="margin-top:6px">الحالة: <b>${esc(statusArabic(o.status))}</b></div><div style="font-size:12px;margin-top:5px">${detail}</div><div style="font-size:12px;color:#687b8b;margin-top:5px">${esc(date)} — الإجمالي: ${esc(o.total||0)} ج.م</div></div>`;}).join('');
- }catch(e){box.innerHTML='<p style="color:#b42318">تعذر تحميل الطلبات: '+esc(e.message||'تحقق من بيانات الدخول')+'</p>';}
+  box.innerHTML=rows.map(o=>{const its=Array.isArray(o.items)?o.items:[];const detail=its.map(i=>esc(i.name||'دواء')+' × '+esc(i.quantity||1)).join('، ');const date=o.created_at?new Date(o.created_at).toLocaleString('ar-EG'):'';return `<div class="item" style="display:block"><b>طلب #${esc(o.id)}</b><div style="margin-top:6px">الحالة: <b>${esc(statusArabic(o.status))}</b></div><div style="font-size:12px;margin-top:5px">${detail||'تفاصيل المنتجات غير متاحة'}</div><div style="font-size:12px;color:#687b8b;margin-top:5px">${esc(date)} — الإجمالي: ${esc(o.total||0)} ج.م</div></div>`;}).join('');
+ }catch(e){box.innerHTML='<p style="color:#b42318">تعذر تحميل الطلبات: '+esc(e.message||'تحقق من الاتصال')+'</p>';}
 }
 
 async function sendOrder(){
@@ -274,7 +355,6 @@ async function sendOrder(){
  if(btn){btn.disabled=true;btn.textContent='جاري إرسال الطلب...'}
  try{
   if(!session?.access_token)await authCustomer();
-  await ensureCustomerProfile(name,phone);
   let items=cart.map(x=>({name:x.name,quantity:x.qty,price:x.price||null,medicine_id:x.raw?.id??null}));
   let total=cart.reduce((sum,x)=>sum+(parseFloat(String(x.price||'0').replace(',','.').replace(/[^0-9.]/g,''))||0)*x.qty,0);
   await apiNew('/rest/v1/orders',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({customer_name:name,customer_phone:phone,address,notes:$('notes').value.trim()||null,items,total,status:'new',user_id:session.user?.id})});
@@ -288,7 +368,20 @@ async function sendOrder(){
 function setF(f,b){filter=f;document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()}
 window.addEventListener('online',()=>load());
 window.addEventListener('offline',()=>setStatus('أنت غير متصل بالإنترنت'));
-$('q').addEventListener('input',render);update();updateAuthUI();ensureSessionFresh().then(updateAuthUI).catch(()=>{});load();
+$('q').addEventListener('input',render);update();
+(async()=>{
+ try{
+  await ensureSessionFresh();
+  if(session?.access_token) await enterPharmacy();
+ }catch(e){
+  console.warn('تعذر استعادة جلسة العميل',e);
+  session=null;saveSession();
+  $('authGate').style.display='flex';
+  $('pharmacyApp').style.display='none';
+  document.body.classList.add('locked');
+ }
+ load();
+})();
 </script>
 <script>
 if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(console.error));}
