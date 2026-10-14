@@ -131,8 +131,6 @@ main.wrap{padding-top:22px}
  .add{font-size:12px;padding:10px 6px}
 }
 
-
-.unit-box{margin-top:9px;padding:9px;background:#f7fbff;border:1px solid #dce9f8;border-radius:12px}.unit-options{display:flex;gap:7px}.unit-options button{flex:1;border:1px solid #cfe0f3;background:#fff;color:#0755b8;border-radius:9px;padding:8px 5px;font-weight:bold;cursor:pointer}.unit-options button.active{background:#0755b8;color:#fff}.unit-options button:disabled{opacity:.45;cursor:not-allowed}.unit-price{font-size:11px;color:#526f91;margin-top:5px}.stock-line{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#16845d;margin-top:5px}.item-main{min-width:0;flex:1}.item-name{font-weight:bold;color:#174477}.item-meta{font-size:11px;color:#687b8b;margin-top:3px}.item-price{font-size:12px;color:#0755b8;font-weight:bold;margin-top:3px}.item-actions{display:flex;align-items:center;gap:6px;margin-top:7px}.item-actions button{border:0;background:#edf3fa;color:#0755b8;border-radius:8px;width:30px;height:30px;font-weight:bold;cursor:pointer}.remove-item{background:#fff0f6!important;color:#d83b82!important;width:auto!important;padding:0 9px}.cart-total{display:flex;justify-content:space-between;gap:12px;margin:14px 0;padding:13px 14px;background:#eaf4ff;border:1px solid #d5e8fb;border-radius:13px;color:#0755b8;font-weight:900;font-size:16px}.cart-note{font-size:12px;color:#687b8b;background:#f8fafc;padding:9px 11px;border-radius:10px;margin-bottom:10px}
 </style>
 </head>
 <body class="locked">
@@ -355,50 +353,99 @@ async function apiAt(base,key,path,opt={},token=null){
 function apiOld(path,opt={}){return apiAt(OLD_U,OLD_K,path,opt)}
 async function apiNew(path,opt={}){await ensureSessionFresh();return apiAt(NEW_U,NEW_K,path,opt,session?.access_token||null)}
 
-function num(v){const n=parseFloat(String(v??'').replace(',','.').replace(/[^0-9.-]/g,''));return Number.isFinite(n)?n:0}
-function map(d){
- const boxPrice=pick(d,['box_price','pack_price','selling_price','price']);
- const stripPrice=pick(d,['strip_price','blister_price']);
- const boxStock=pick(d,['box_stock','stock_boxes','stock_quantity','quantity','qty']);
- const stripStock=pick(d,['strip_stock','stock_strips']);
- const legacyQty=pick(d,['stock_quantity','quantity','qty']);
- const details=[
-  pick(d,['concentration']),
-  pick(d,['dosage_form','unit']),
-  pick(d,['manufacturer']),
-  pick(d,['indications','description','details','usage'])
- ].filter(v=>String(v??'').trim()).join(' · ');
- return {raw:d,id:d?.id,name:pick(d,['name','name_ar','medicine_name','commercial_name']),active:pick(d,['active_ingredient','active','scientific_name']),price:boxPrice,boxPrice,stripPrice,boxStock,stripStock,qty:legacyQty,img:pick(d,['image_url','image','img']),barcode:pick(d,['barcode','gtin']),code:pick(d,['internal_code','code']),otc:pick(d,['otc','is_otc','category']),details};
+function map(d){return{raw:d,id:d?.id,name:pick(d,['name','name_ar','commercial_name']),active:pick(d,['active_ingredient','active','scientific_name']),price:pick(d,['selling_price','price','box_price']),qty:pick(d,['stock_quantity','quantity','qty','box_stock']),img:pick(d,['image_url','image']),details:pick(d,['indications','uses','description','details','notes']),manufacturer:pick(d,['manufacturer','company','manufacturer_name']),conc:pick(d,['concentration','strength']),dose:pick(d,['dosage_form','form','dose_form']),barcode:pick(d,['barcode','gtin']),code:pick(d,['internal_code','code']),otc:pick(d,['otc','is_otc','category'])}}
+function avail(m){return parseFloat(String(m.qty).replace(',','.'))>0}
+
+async function load(){
+ try{
+  setStatus('جاري تحميل الأدوية...');
+  meds=await apiOld('/rest/v1/medicines?select=*&limit=1000');
+  render();
+  setStatus('تم تحميل '+meds.length+' دواء');
+ }catch(e){
+  console.error(e);render();
+  setStatus(navigator.onLine?'تعذر الاتصال بقاعدة البيانات. حاول مرة أخرى.':'لا يوجد اتصال بالإنترنت. سيتم عرض البيانات المحفوظة إن وُجدت.')
+ }
 }
-function stockFor(m,unit){if(unit==='box'){const n=num(m.boxStock);return n>0?n:num(m.qty)}return num(m.stripStock)}
-function unitPrice(m,unit){return unit==='box'?num(m.boxPrice):num(m.stripPrice)}
-function hasUnit(m,unit){return stockFor(m,unit)>0&&unitPrice(m,unit)>0}
-function avail(m){return hasUnit(m,'box')||hasUnit(m,'strip')||num(m.qty)>0}
-function defaultUnit(m){return hasUnit(m,'box')?'box':hasUnit(m,'strip')?'strip':'box'}
-function unitName(u){return u==='strip'?'شريط':'علبة'}
-async function load(){try{setStatus('جاري تحميل الأدوية والمخزون...');meds=await apiOld('/rest/v1/medicines?select=*&limit=1000');cart=cart.filter(x=>meds.some(m=>String(m.id??m.name)===String(x.raw?.id??x.name)));saveCart();render();setStatus('تم تحميل '+meds.length+' دواء من مخزون الصيدلية')}catch(e){console.error(e);render();setStatus(navigator.onLine?'تعذر الاتصال بقاعدة البيانات. حاول مرة أخرى.':'لا يوجد اتصال بالإنترنت.')}}
-function render(){let q=norm($('q').value);let a=meds.map(map).filter(m=>(filter==='all'||filter==='available'&&avail(m)||filter==='otc'&&norm(m.otc).includes('otc'))&&(!q||[m.name,m.active,m.barcode,m.code,m.details].some(v=>norm(v).includes(q))));$('grid').innerHTML=a.length?a.slice(0,80).map(card).join(''):'<div class="empty">لم نجد دواء مطابقًا.</div>'}
-function card(m){const key=String(m.raw.id??m.name),box=hasUnit(m,'box'),strip=hasUnit(m,'strip'),selected=cart.find(x=>String(x.raw?.id??x.name)===key),unit=selected?.unit||defaultUnit(m),stock=stockFor(m,unit),price=unitPrice(m,unit);return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div>${m.active?`<div class="sub">المادة الفعالة: ${esc(m.active)}</div>`:''}${m.details?`<div class="sub" style="margin-top:5px">${esc(m.details)}</div>`:''}<div class="unit-box"><div style="font-size:12px;font-weight:bold;color:#174477;margin-bottom:6px">اختر وحدة البيع</div><div class="unit-options"><button class="${unit==='box'?'active':''}" ${box?'':'disabled'} onclick="chooseUnit('${esc(key)}','box')">علبة${box?' — '+esc(m.boxPrice)+' ج.م':' — غير متاح'}</button><button class="${unit==='strip'?'active':''}" ${strip?'':'disabled'} onclick="chooseUnit('${esc(key)}','strip')">شريط${strip?' — '+esc(m.stripPrice)+' ج.م':' — غير متاح'}</button></div><div class="stock-line"><span>المتاح: ${stock} ${unitName(unit)}</span><span>${price?esc(price)+' ج.م / '+unitName(unit):'السعر غير محدد'}</span></div></div><button class="add" ${price>0&&stock>0?'':'disabled'} data-key="${esc(key)}" onclick="addByKey(this.dataset.key)">${selected?'✓ تمت الإضافة':'إضافة للطلب'}</button></article>`}
-function findMed(key){return meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key))}
-function chooseUnit(key,unit){const m=findMed(key);if(!m||!hasUnit(m,unit))return alert('هذه الوحدة غير متاحة حاليًا.');const i=cart.findIndex(x=>String(x.raw?.id??x.name)===String(key));if(i>=0){cart[i].unit=unit;cart[i].price=unitPrice(m,unit);cart[i].qty=Math.min(cart[i].qty,stockFor(m,unit));if(cart[i].qty<1)cart.splice(i,1)}saveCart();update();render();if($('modal').classList.contains('show'))draw()}
-function addByKey(key){const m=findMed(key);if(m)add(m.raw)}
-function add(raw,unit=null){const m=map(raw),key=String(raw.id??m.name),u=unit||defaultUnit(m),price=unitPrice(m,u),stock=stockFor(m,u);if(!price||stock<1)return alert('هذا الدواء غير متاح حاليًا بهذه الوحدة.');const x=cart.find(i=>String(i.raw?.id??i.name)===key&&i.unit===u);if(x){if(x.qty>=stock)return alert('لا يمكن تجاوز الكمية المتاحة في المخزون.');x.qty++}else cart.push({raw,name:m.name||'دواء',unit:u,price,qty:1});saveCart();update();render()}
+
+function render(){
+ let q=norm($('q').value);
+ let a=meds.map(map).filter(m=>(filter==='all'||filter==='available'&&avail(m)||filter==='otc'&&norm(m.otc).includes('otc'))&&(!q||[m.name,m.active,m.barcode,m.code].some(v=>norm(v).includes(q))));
+ $('grid').innerHTML=a.length?a.slice(0,80).map(card).join(''):'<div class="empty">لم نجد دواء مطابقًا.</div>';
+}
+function card(m){
+ let key=String(m.raw.id??m.name),exists=cart.find(x=>String(x.raw?.id??x.name)===key);
+ return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div><div class="sub">${esc(m.active||'')}</div><div class="sub">${esc([m.conc,m.dose,m.manufacturer].filter(Boolean).join(' · '))}</div><div class="price">${m.price?esc(m.price)+' ج.م':'السعر عند الطلب'}</div><div class="avail">${avail(m)?'متوفر':'غير متوفر'}</div><button class="add" ${avail(m)?'':'disabled'} data-key="${esc(key)}" onclick="addByKey(this.dataset.key)">${exists?'✓ تمت الإضافة':'إضافة للطلب'}</button></article>`;
+}
+function addByKey(key){let m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));if(m)add(m.raw)}
+function add(raw){
+ let m=map(raw),key=String(raw.id??m.name),x=cart.find(i=>String(i.raw?.id??i.name)===key);
+ x?x.qty++:cart.push({raw,name:m.name||'دواء',price:m.price,qty:1});
+ saveCart();update();render();
+}
 function update(){$('count').textContent=cart.reduce((a,x)=>a+x.qty,0);saveCart()}
 function openCart(){$('modal').classList.add('show');$('checkout').style.display='block';$('success').style.display='none';draw();updateAuthUI()}
 function closeCart(){$('modal').classList.remove('show')}
-function draw(){if(!cart.length){$('cart').innerHTML='<div class="empty">السلة فارغة.</div>';return}let total=0;$('cart').innerHTML=cart.map((x,i)=>{const m=map(x.raw),stock=stockFor(m,x.unit),price=unitPrice(m,x.unit)||num(x.price);x.price=price;total+=price*x.qty;return `<div class="item"><div class="item-main"><div class="item-name">${esc(x.name)}</div><div class="item-meta">الوحدة: ${unitName(x.unit)} — السعر: ${esc(price)} ج.م</div><div class="item-price">الإجمالي: ${esc(price*x.qty)} ج.م</div><div class="item-actions"><button onclick="chg(${i},-1)">−</button><b>${x.qty}</b><button onclick="chg(${i},1)">+</button><button class="remove-item" onclick="removeItem(${i})">حذف</button><span style="font-size:11px;color:#16845d">متاح: ${stock}</span></div></div></div>`}).join('')+`<div class="cart-note">يمكنك تعديل الكميات أو حذف أي صنف قبل إرسال الطلب.</div><div class="cart-total"><span>إجمالي الفاتورة</span><span>${esc(total)} ج.م</span></div>`;saveCart()}
-function removeItem(i){cart.splice(i,1);update();draw();render()}
-function chg(i,n){const x=cart[i];if(!x)return;const m=map(x.raw),stock=stockFor(m,x.unit);if(n>0&&x.qty>=stock)return alert('لا يمكن تجاوز الكمية المتاحة في المخزون.');x.qty+=n;if(x.qty<=0)cart.splice(i,1);update();draw();render()}
+function draw(){$('cart').innerHTML=cart.length?cart.map((x,i)=>`<div class="item"><b>${x.name}</b><div class="qty"><button onclick="chg(${i},-1)">−</button> ${x.qty} <button onclick="chg(${i},1)">+</button></div></div>`).join(''):'<div class="empty">السلة فارغة.</div>'}
+function chg(i,n){cart[i].qty+=n;if(cart[i].qty<=0)cart.splice(i,1);update();draw();render()}
 
-async function authCustomer(){const email=$('email').value.trim(),password=$('password').value;if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');let endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';const payload=authMode==='login'?{email,password}:{email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/'}};let r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await r.json().catch(()=>({}));if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البريد وكلمة المرور.');if(!data.access_token)throw Error('تم إنشاء الحساب. افحص بريدك إذا طُلب تأكيده، ثم اختر تسجيل الدخول.');session=data;saveSession();updateAuthUI();return data}
-function statusArabic(s){const m={new:'جديد',processing:'قيد التجهيز',preparing:'قيد التجهيز',shipped:'تم الشحن',with_delivery:'مع مندوب التوصيل',ready:'جاهز',completed:'مكتمل',delivered:'تم التسليم',cancelled:'ملغي'};return m[String(s||'').toLowerCase()]||String(s||'غير محدد')}
-async function authCustomerWith(email,password){const r=await fetch(NEW_U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});const d=await r.json().catch(()=>({}));if(!r.ok||!d.access_token)throw Error(d.msg||d.message||d.error_description||'بيانات الدخول غير صحيحة.');session=d;saveSession();updateAuthUI();return d}
-async function loadMyOrders(){const box=$('myOrders');if(!session?.access_token||!session.user?.id){$('ordersHint').textContent='سجّل الدخول لعرض الطلبات المرتبطة بحسابك.';box.innerHTML='<p class="empty">لم يتم تسجيل الدخول.</p>';return}box.innerHTML='<p>جاري تحميل طلباتك...</p>';try{await ensureSessionFresh();const rows=await apiNew('/rest/v1/orders?select=id,items,total,status,created_at&user_id=eq.'+encodeURIComponent(session.user.id)+'&order=created_at.desc');$('ordersHint').textContent='طلباتك المرتبطة بحسابك فقط.';if(!rows||!rows.length){box.innerHTML='<p class="empty">لا توجد طلبات مسجلة على هذا الحساب حتى الآن.</p>';return}box.innerHTML=rows.map(o=>{const its=Array.isArray(o.items)?o.items:[];const detail=its.map(i=>esc(i.name||'دواء')+' × '+esc(i.quantity||1)+' '+esc(i.unit_name||'' )).join('، ');const date=o.created_at?new Date(o.created_at).toLocaleString('ar-EG'):'';return `<div class="item" style="display:block"><b>طلب #${esc(o.id)}</b><div style="margin-top:6px">الحالة: <b>${esc(statusArabic(o.status))}</b></div><div style="font-size:12px;margin-top:5px">${detail||'تفاصيل المنتجات غير متاحة'}</div><div style="font-size:12px;color:#687b8b;margin-top:5px">${esc(date)} — الإجمالي: ${esc(o.total||0)} ج.م</div></div>`}).join('')}catch(e){box.innerHTML='<p style="color:#b42318">تعذر تحميل الطلبات: '+esc(e.message||'تحقق من الاتصال')+'</p>'}}
-async function sendOrder(){if(sending)return;if(!cart.length)return alert('أضف دواء أولًا');let name=$('name').value.trim(),phone=$('phone').value.trim(),address=$('address').value.trim();if(name.length<2||!/^[-+()\s\d]{7,20}$/.test(phone)||address.length<5)return alert('تأكد من الاسم ورقم الهاتف والعنوان');sending=true;let btn=document.querySelector('#checkout .send');if(btn){btn.disabled=true;btn.textContent='جاري إرسال الطلب...'}let stockDeducted=false;try{if(!session?.access_token)await authCustomer();meds=await apiOld('/rest/v1/medicines?select=*&limit=1000');const items=[];let total=0;for(const x of cart){const m=findMed(String(x.raw?.id??x.name));if(!m)throw Error('أحد الأدوية لم يعد موجودًا في المخزون.');const stock=stockFor(m,x.unit),price=unitPrice(m,x.unit);if(stock<x.qty)throw Error('الكمية المطلوبة من '+m.name+' غير متاحة. المتاح: '+stock+' '+unitName(x.unit));if(!price)throw Error('سعر '+m.name+' غير محدد لهذه الوحدة.');items.push({name:m.name,quantity:x.qty,unit:x.unit,unit_name:unitName(x.unit),price,medicine_id:m.raw?.id??null});total+=price*x.qty}await apiOld('/rest/v1/rpc/deduct_medicine_stock',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({p_items:items})});stockDeducted=true;try{await apiNew('/rest/v1/orders',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({customer_name:name,customer_phone:phone,address,notes:$('notes').value.trim()||null,items,total,status:'new',user_id:session.user?.id})})}catch(orderError){if(stockDeducted){try{await apiOld('/rest/v1/rpc/restore_medicine_stock',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({p_items:items})})}catch(restoreError){console.error('فشل استرجاع المخزون',restoreError)}}throw orderError}cart=[];saveCart();update();$('checkout').style.display='none';$('success').style.display='block'}catch(e){alert(e.message||'تعذر إرسال الطلب. تحقق من البيانات والإنترنت ثم حاول مرة أخرى.');console.error(e)}finally{sending=false;if(btn){btn.disabled=false;btn.textContent='إرسال الطلب للصيدلية'}}}
+async function authCustomer(){
+ const email=$('email').value.trim(),password=$('password').value;
+ if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');
+ let endpoint=authMode==='login'?'/auth/v1/token?grant_type=password':'/auth/v1/signup';
+ const payload = authMode==='login' ? {email,password} : {email,password,options:{emailRedirectTo:'https://heba-elshawarby.github.io/heba-pharmacy/'}};
+  let r=await fetch(NEW_U+endpoint,{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+ let data=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(data.msg||data.message||data.error_description||'تعذر تسجيل الدخول. راجع البريد وكلمة المرور.');
+ if(!data.access_token)throw Error('تم إنشاء الحساب. افحص بريدك إذا طُلب تأكيده، ثم اختر تسجيل الدخول.');
+ session=data;saveSession();updateAuthUI();return data;
+}
+
+
+function statusArabic(s){const m={new:'جديد',processing:'قيد التجهيز',shipped:'تم الشحن',completed:'مكتمل',cancelled:'ملغي'};return m[String(s||'').toLowerCase()]||String(s||'غير محدد');}
+async function authCustomerWith(email,password){
+ const r=await fetch(NEW_U+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:NEW_K,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok||!d.access_token)throw Error(d.msg||d.message||d.error_description||'بيانات الدخول غير صحيحة.');
+ session=d;saveSession();updateAuthUI();return d;
+}
+async function loadMyOrders(){
+ const box=$('myOrders');
+ if(!session?.access_token||!session.user?.id){$('ordersHint').textContent='سجّل الدخول لعرض الطلبات المرتبطة بحسابك.';box.innerHTML='<p class="empty">لم يتم تسجيل الدخول.</p>';return;}
+ box.innerHTML='<p>جاري تحميل طلباتك...</p>';
+ try{
+  await ensureSessionFresh();
+  const rows=await apiNew('/rest/v1/orders?select=id,items,total,status,created_at&user_id=eq.'+encodeURIComponent(session.user.id)+'&order=created_at.desc');
+  $('ordersHint').textContent='طلباتك المرتبطة بحسابك فقط.';
+  if(!rows||!rows.length){box.innerHTML='<p class="empty">لا توجد طلبات مسجلة على هذا الحساب حتى الآن.</p>';return;}
+  box.innerHTML=rows.map(o=>{const its=Array.isArray(o.items)?o.items:[];const detail=its.map(i=>esc(i.name||'دواء')+' × '+esc(i.quantity||1)).join('، ');const date=o.created_at?new Date(o.created_at).toLocaleString('ar-EG'):'';return `<div class="item" style="display:block"><b>طلب #${esc(o.id)}</b><div style="margin-top:6px">الحالة: <b>${esc(statusArabic(o.status))}</b></div><div style="font-size:12px;margin-top:5px">${detail||'تفاصيل المنتجات غير متاحة'}</div><div style="font-size:12px;color:#687b8b;margin-top:5px">${esc(date)} — الإجمالي: ${esc(o.total||0)} ج.م</div></div>`;}).join('');
+ }catch(e){box.innerHTML='<p style="color:#b42318">تعذر تحميل الطلبات: '+esc(e.message||'تحقق من الاتصال')+'</p>';}
+}
+
+async function sendOrder(){
+ if(sending)return;
+ if(!cart.length)return alert('أضف دواء أولًا');
+ let name=$('name').value.trim(),phone=$('phone').value.trim(),address=$('address').value.trim();
+ if(name.length<2||!/^[-+()\s\d]{7,20}$/.test(phone)||address.length<5)return alert('تأكد من الاسم ورقم الهاتف والعنوان');
+ sending=true;
+ let btn=document.querySelector('#checkout .send');
+ if(btn){btn.disabled=true;btn.textContent='جاري إرسال الطلب...'}
+ try{
+  if(!session?.access_token)await authCustomer();
+  let items=cart.map(x=>({name:x.name,quantity:x.qty,price:x.price||null,medicine_id:x.raw?.id??null}));
+  let total=cart.reduce((sum,x)=>sum+(parseFloat(String(x.price||'0').replace(',','.').replace(/[^0-9.]/g,''))||0)*x.qty,0);
+  await apiNew('/rest/v1/orders',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({customer_name:name,customer_phone:phone,address,notes:$('notes').value.trim()||null,items,total,status:'new',user_id:session.user?.id})});
+  cart=[];saveCart();update();$('checkout').style.display='none';$('success').style.display='block';
+ }catch(e){
+  alert(e.message||'تعذر إرسال الطلب. تحقق من البيانات والإنترنت ثم حاول مرة أخرى.');console.error(e);
+ }finally{
+  sending=false;if(btn){btn.disabled=false;btn.textContent='إرسال الطلب للصيدلية'}
+ }
+}
 function setF(f,b){filter=f;document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()}
 window.addEventListener('online',()=>load());
 window.addEventListener('offline',()=>setStatus('أنت غير متصل بالإنترنت'));
-$('q').addEventListener('input',render);update();
+$('q').addEventListener('input',render);$('q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();render();}});const searchBtn=document.querySelector('[onclick*="render()"],button.search,button[aria-label*="بحث"]');if(searchBtn)searchBtn.addEventListener('click',()=>render());update();
 (async()=>{
  try{
   await ensureSessionFresh();
