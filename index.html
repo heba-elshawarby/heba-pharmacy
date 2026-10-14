@@ -381,28 +381,60 @@ function hasStrip(m){return m.stripStock>0 && m.stripPrice>0}
 function avail(m){return hasBox(m)||hasStrip(m)||num(m.qty)>0}
 function unitOptions(m){
  const out=[];
- if(m.boxPrice>0 && m.boxStock>0)out.push({key:'box',label:'علبة',price:m.boxPrice,stock:m.boxStock});
- if(m.stripPrice>0 && m.stripStock>0)out.push({key:'strip',label:'شريط',price:m.stripPrice,stock:m.stripStock});
- if(!out.length && num(m.price)>0 && num(m.qty)>0)out.push({key:'base',label:'وحدة',price:num(m.price),stock:num(m.qty)});
+ const q1=num(m.qty1),q2=num(m.qty2),p=num(m.price);
+ if(q1>0 && m.unit1)out.push({key:'u1',label:m.unit1,price:p,stock:q1});
+ if(q2>0 && m.unit2)out.push({key:'u2',label:m.unit2,price:p,stock:q2});
+ if(!out.length && m.boxPrice>0 && m.boxStock>0)out.push({key:'box',label:'علبة',price:m.boxPrice,stock:m.boxStock});
+ if(!out.length && m.stripPrice>0 && m.stripStock>0)out.push({key:'strip',label:'شريط',price:m.stripPrice,stock:m.stripStock});
+ if(!out.length && p>0 && num(m.qty)>0)out.push({key:'base',label:'وحدة',price:p,stock:num(m.qty)});
  return out;
 }
 function stockText(m){
  const p=[];
- if(m.boxStock>0)p.push('علب: '+m.boxStock);
- if(m.stripStock>0)p.push('أشرطة: '+m.stripStock);
+ if(num(m.qty1)>0 && m.unit1)p.push(m.unit1+': '+num(m.qty1));
+ if(num(m.qty2)>0 && m.unit2)p.push(m.unit2+': '+num(m.qty2));
+ if(!p.length && m.boxStock>0)p.push('علب: '+m.boxStock);
+ if(!p.length && m.stripStock>0)p.push('أشرطة: '+m.stripStock);
  if(!p.length && num(m.qty)>0)p.push('متاح: '+num(m.qty));
- return p.join(' · ')||'غير متوفر';
+ return p.join(' + ')||'غير متوفر';
 }
 
 async function load(){
  try{
   setStatus('جاري تحميل أدوية ومخزون الصيدلية...');
-  meds=await apiOld('/rest/v1/medicines?select=*&order=name.asc&limit=1000',{headers:{'Cache-Control':'no-cache'}});
+  // المصدر الفعلي لمخزون البرنامج القديم هو pharmacy_inventory.
+  // البرنامج القديم يرفع إليه الاسم والمادة الفعالة والسعر والكمية والوحدات والصورة تلقائيًا.
+  const rows=await apiOld('/rest/v1/pharmacy_inventory?select=*&order=name_ar.asc&limit=5000',{headers:{'Cache-Control':'no-cache'}});
+  meds=Array.isArray(rows)?rows.map(function(r){
+    const q1=num(r.qty1), q2=num(r.qty2), total=q1+q2;
+    const price=num(r.price);
+    const u1=String(r.unit1||'').trim(), u2=String(r.unit2||'').trim();
+    return {
+      ...r,
+      id:r.item_key||r.code||r.barcode||r.name_ar||r.name_en,
+      name:r.name_ar||r.name_en||'',
+      name_ar:r.name_ar||'',
+      name_en:r.name_en||'',
+      active:r.active||'',
+      price:r.price,
+      qty:total,
+      // إذا كانت الوحدة علبة/شريط نستخدم السعر والكمية في اختيار الوحدة.
+      boxPrice:u1==='علبة'?price:0,
+      boxStock:u1==='علبة'?q1:0,
+      stripPrice:u1==='شريط'?price:0,
+      stripStock:u1==='شريط'?q1:0,
+      unit1:u1, qty1:q1, unit2:u2, qty2:q2,
+      img:r.image_data_url||'',
+      image_url:r.image_data_url||'',
+      manufacturer:r.company||'',
+      details:[r.group,r.origin,r.stopped].filter(Boolean).join(' · ')
+    };
+  }):[];
   render();
-  setStatus('تم تحميل '+meds.length+' دواء من برنامج الصيدلية');
+  setStatus('تم تحميل '+meds.length+' صنف من مخزون الصيدلية القديم');
  }catch(e){
-  console.error('OLD medicines load error:',e);render();
-  setStatus(navigator.onLine?'تعذر تحميل أدوية برنامج الصيدلية القديم: '+(e.message||'تحقق من صلاحية القراءة في Supabase'):'لا يوجد اتصال بالإنترنت.')
+  console.error('OLD pharmacy inventory load error:',e);render();
+  setStatus(navigator.onLine?'تعذر تحميل مخزون الصيدلية القديم: '+(e.message||'تحقق من صلاحية القراءة في جدول pharmacy_inventory'):'لا يوجد اتصال بالإنترنت.')
  }
 }
 
