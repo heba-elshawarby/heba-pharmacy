@@ -214,7 +214,7 @@ main.wrap{padding-top:22px}
 const CART_KEY='shawarbi_cart_v1';
 
 // المشروع القديم: قراءة بيانات الأدوية فقط
-const OLD_U='https://rlqkyfwnkhaaykcgkhhm.supabase.co';
+const OLD_U='https://rlqkyfwnkhaaykcgkhhm.supabase.co'; // المصدر الوحيد للأدوية والمخزون
 const OLD_K='sb_publishable_LJu9hzDHEE8WCZDhIJzfXg_DaQP5GpU';
 
 // المشروع الجديد: حسابات العملاء والطلبات
@@ -355,19 +355,17 @@ async function apiNew(path,opt={}){await ensureSessionFresh();return apiAt(NEW_U
 
 function map(d){
  return{
-  raw:d,
-  id:d?.id,
+  raw:d,id:d?.id,
   name:pick(d,['name','name_ar','commercial_name','drug_name','medicine_name']),
   active:pick(d,['active_ingredient','active','scientific_name','generic_name']),
   price:pick(d,['selling_price','price','box_price','sale_price','sellingPrice']),
   qty:pick(d,['stock_quantity','quantity','qty','box_stock','stock','available_quantity']),
+  unit:pick(d,['unit','package_unit','selling_unit'])||'علبة',
   img:pick(d,['image_url','image','photo_url','photo']),
   details:pick(d,['indications','uses','description','details','notes','instructions']),
   manufacturer:pick(d,['manufacturer','company','manufacturer_name']),
   conc:pick(d,['concentration','strength']),
   dose:pick(d,['dosage_form','form','dose_form']),
-  barcode:pick(d,['barcode','gtin']),
-  code:pick(d,['internal_code','code']),
   otc:pick(d,['otc','is_otc','category'])
  }
 }
@@ -375,22 +373,21 @@ function avail(m){return parseFloat(String(m.qty).replace(',','.'))>0}
 
 async function load(){
  try{
-  setStatus('جاري تحميل الأدوية...');
-  meds=await apiOld('/rest/v1/medicines?select=*&limit=1000');
+  setStatus('جاري تحميل أدوية ومخزون الصيدلية...');
+  meds=await apiOld('/rest/v1/medicines?select=*&order=name.asc&limit=1000',{headers:{'Cache-Control':'no-cache'}});
   render();
-  setStatus('تم تحميل '+meds.length+' دواء من مخزون الصيدلية');
+  setStatus('تم تحميل '+meds.length+' دواء من برنامج الصيدلية');
  }catch(e){
-  console.error(e);render();
-  setStatus(navigator.onLine?'تعذر الاتصال بقاعدة البيانات. حاول مرة أخرى.':'لا يوجد اتصال بالإنترنت. سيتم عرض البيانات المحفوظة إن وُجدت.')
+  console.error('OLD medicines load error:',e);render();
+  setStatus(navigator.onLine?'تعذر تحميل أدوية برنامج الصيدلية القديم: '+(e.message||'تحقق من صلاحية القراءة في Supabase'):'لا يوجد اتصال بالإنترنت.')
  }
 }
 
 function render(){
  const q=norm($('q').value);
- const words=q.split(/\\s+/).filter(Boolean);
+ const words=q.split(/\s+/).filter(Boolean);
  const matches=(m)=>{
   if(!words.length)return true;
-  // Customer search is intentionally limited to medicine name and active ingredient.
   const hay=[m.name,m.active].map(norm).join(' ');
   return words.every(w=>hay.includes(w));
  };
@@ -399,12 +396,14 @@ function render(){
   && matches(m)
  );
  $('grid').innerHTML=a.length
-   ? a.slice(0,80).map(card).join('')
-   : '<div class="empty">لم نجد دواء مطابقًا. جرّب اسم الدواء أو المادة الفعالة أو جزءًا منهما.</div>';
+  ? a.slice(0,80).map(card).join('')
+  : '<div class="empty">لم نجد دواء مطابقًا. جرّب اسم الدواء أو المادة الفعالة أو جزءًا منهما.</div>';
 }
 function card(m){
  let key=String(m.raw.id??m.name),exists=cart.find(x=>String(x.raw?.id??x.name)===key);
- return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div><div class="sub">${esc(m.active||'')}</div><div class="sub">${esc([m.conc,m.dose,m.manufacturer].filter(Boolean).join(' · '))}</div><div class="price">${m.price?esc(m.price)+' ج.م':'السعر عند الطلب'}</div><div class="avail">${avail(m)?'متوفر':'غير متوفر'}</div><button class="add" ${avail(m)?'':'disabled'} data-key="${esc(key)}" onclick="addByKey(this.dataset.key)">${exists?'✓ تمت الإضافة':'إضافة للطلب'}</button></article>`;
+ const extra=[m.conc,m.dose,m.manufacturer].filter(Boolean).join(' · ');
+ const details=m.details?`<div class="sub">${esc(m.details)}</div>`:'';
+ return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div><div class="sub">${esc(m.active||'')}</div>${extra?`<div class="sub">${esc(extra)}</div>`:''}${details}<div class="price">${m.price!==''&&m.price!=null?esc(m.price)+' ج.م':'السعر عند الطلب'}</div><div class="avail">${avail(m)?'متوفر — '+esc(m.qty)+' '+esc(m.unit):'غير متوفر'}</div><button class="add" ${avail(m)?'':'disabled'} data-key="${esc(key)}" onclick="addByKey(this.dataset.key)">${exists?'✓ تمت الإضافة':'إضافة للطلب'}</button></article>`;
 }
 function addByKey(key){let m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));if(m)add(m.raw)}
 function add(raw){
