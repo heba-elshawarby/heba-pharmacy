@@ -358,9 +358,12 @@ function map(d){
   raw:d,id:d?.id,
   name:pick(d,['name','name_ar','commercial_name','drug_name','medicine_name']),
   active:pick(d,['active_ingredient','active','scientific_name','generic_name']),
-  price:pick(d,['selling_price','price','box_price','sale_price','sellingPrice']),
-  qty:pick(d,['stock_quantity','quantity','qty','box_stock','stock','available_quantity']),
-  unit:pick(d,['unit','package_unit','selling_unit'])||'علبة',
+  price:pick(d,['selling_price','price','sale_price','sellingPrice']),
+  qty:pick(d,['stock_quantity','quantity','qty']),
+  boxPrice:num(d?.box_price)||0,
+  stripPrice:num(d?.strip_price)||0,
+  boxStock:num(d?.box_stock)||0,
+  stripStock:num(d?.strip_stock)||0,
   img:pick(d,['image_url','image','photo_url','photo']),
   details:pick(d,['indications','uses','description','details','notes','instructions']),
   manufacturer:pick(d,['manufacturer','company','manufacturer_name']),
@@ -369,7 +372,27 @@ function map(d){
   otc:pick(d,['otc','is_otc','category'])
  }
 }
-function avail(m){return parseFloat(String(m.qty).replace(',','.'))>0}
+function num(v){
+ const n=parseFloat(String(v??'').replace(',','.').replace(/[^0-9.\-]/g,''));
+ return Number.isFinite(n)?n:0;
+}
+function hasBox(m){return m.boxStock>0 && m.boxPrice>0}
+function hasStrip(m){return m.stripStock>0 && m.stripPrice>0}
+function avail(m){return hasBox(m)||hasStrip(m)||num(m.qty)>0}
+function unitOptions(m){
+ const out=[];
+ if(m.boxPrice>0 && m.boxStock>0)out.push({key:'box',label:'علبة',price:m.boxPrice,stock:m.boxStock});
+ if(m.stripPrice>0 && m.stripStock>0)out.push({key:'strip',label:'شريط',price:m.stripPrice,stock:m.stripStock});
+ if(!out.length && num(m.price)>0 && num(m.qty)>0)out.push({key:'base',label:'وحدة',price:num(m.price),stock:num(m.qty)});
+ return out;
+}
+function stockText(m){
+ const p=[];
+ if(m.boxStock>0)p.push('علب: '+m.boxStock);
+ if(m.stripStock>0)p.push('أشرطة: '+m.stripStock);
+ if(!p.length && num(m.qty)>0)p.push('متاح: '+num(m.qty));
+ return p.join(' · ')||'غير متوفر';
+}
 
 async function load(){
  try{
@@ -400,23 +423,55 @@ function render(){
   : '<div class="empty">لم نجد دواء مطابقًا. جرّب اسم الدواء أو المادة الفعالة أو جزءًا منهما.</div>';
 }
 function card(m){
- let key=String(m.raw.id??m.name),exists=cart.find(x=>String(x.raw?.id??x.name)===key);
+ const key=String(m.raw.id??m.name);
  const extra=[m.conc,m.dose,m.manufacturer].filter(Boolean).join(' · ');
  const details=m.details?`<div class="sub">${esc(m.details)}</div>`:'';
- return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div><div class="sub">${esc(m.active||'')}</div>${extra?`<div class="sub">${esc(extra)}</div>`:''}${details}<div class="price">${m.price!==''&&m.price!=null?esc(m.price)+' ج.م':'السعر عند الطلب'}</div><div class="avail">${avail(m)?'متوفر — '+esc(m.qty)+' '+esc(m.unit):'غير متوفر'}</div><button class="add" ${avail(m)?'':'disabled'} data-key="${esc(key)}" onclick="addByKey(this.dataset.key)">${exists?'✓ تمت الإضافة':'إضافة للطلب'}</button></article>`;
+ const opts=unitOptions(m);
+ const chosen=opts.map(o=>`${o.label}: ${o.price} ج.م`).join(' · ');
+ return `<article class="card"><div class="pic">${m.img?`<img src="${esc(m.img)}" onerror="this.style.display='none';this.parentElement.innerText='✚'">`:'✚'}</div><div class="name">${esc(m.name||'دواء')}</div><div class="sub">${esc(m.active||'')}</div>${extra?`<div class="sub">${esc(extra)}</div>`:''}${details}<div class="price">${chosen||'السعر عند الطلب'}</div><div class="avail">${esc(stockText(m))}</div>${opts.length?`<div class="unit-row" style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">${opts.map(o=>`<button type="button" class="unit-btn" style="flex:1;min-width:90px;padding:9px;border:1px solid #dbe8f8;border-radius:10px;background:#fff;color:#0755b8;font-weight:bold" data-key="${esc(key)}" data-unit="${o.key}" onclick="chooseAndAdd(this.dataset.key,this.dataset.unit)">${o.label}<br>${o.price} ج.م<br><small>متاح ${o.stock}</small></button>`).join('')}</div>`:''}</article>`;
 }
-function addByKey(key){let m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));if(m)add(m.raw)}
-function add(raw){
- let m=map(raw),key=String(raw.id??m.name),x=cart.find(i=>String(i.raw?.id??i.name)===key);
- x?x.qty++:cart.push({raw,name:m.name||'دواء',price:m.price,qty:1});
+function chooseAndAdd(key,unitKey){
+ const m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));
+ if(!m)return;
+ const opt=unitOptions(m).find(o=>o.key===unitKey);
+ if(!opt)return;
+ let x=cart.find(i=>String(i.raw?.id??i.name)===String(key)&&i.unitKey===unitKey);
+ if(x){
+  if(x.qty>=opt.stock)return alert('لا توجد كمية إضافية متاحة من هذا النوع.');
+  x.qty++;
+ }else{
+  cart.push({raw:m.raw,name:m.name||'دواء',price:opt.price,qty:1,unitKey,unitLabel:opt.label});
+ }
  saveCart();update();render();
 }
-function update(){$('count').textContent=cart.reduce((a,x)=>a+x.qty,0);saveCart()}
+function addByKey(key){
+ const m=meds.map(map).find(x=>String(x.raw?.id??x.name)===String(key));
+ if(!m)return;
+ const opts=unitOptions(m);
+ if(opts.length===1)chooseAndAdd(key,opts[0].key);
+ else if(opts.length>1)alert('اختر أولًا: علبة أو شريط.');
+}
+function update(){
+ $('count').textContent=cart.reduce((a,x)=>a+x.qty,0);
+ saveCart();
+}
+function cartTotal(){return cart.reduce((sum,x)=>sum+num(x.price)*x.qty,0)}
 function openCart(){$('modal').classList.add('show');$('checkout').style.display='block';$('success').style.display='none';draw();updateAuthUI()}
 function closeCart(){$('modal').classList.remove('show')}
-function draw(){$('cart').innerHTML=cart.length?cart.map((x,i)=>`<div class="item"><b>${x.name}</b><div class="qty"><button onclick="chg(${i},-1)">−</button> ${x.qty} <button onclick="chg(${i},1)">+</button></div></div>`).join(''):'<div class="empty">السلة فارغة.</div>'}
-function chg(i,n){cart[i].qty+=n;if(cart[i].qty<=0)cart.splice(i,1);update();draw();render()}
-
+function draw(){
+ if(!cart.length){$('cart').innerHTML='<div class="empty">السلة فارغة.</div>';return;}
+ $('cart').innerHTML=cart.map((x,i)=>`<div class="item"><div><b>${esc(x.name)}</b><div style="font-size:12px;color:#687b8b;margin-top:4px">${esc(x.unitLabel||'وحدة')} — ${num(x.price).toFixed(2)} ج.م</div></div><div class="qty"><button onclick="chg(${i},-1)">−</button> ${x.qty} <button onclick="chg(${i},1)">+</button></div><button type="button" onclick="removeCartItem(${i})" style="border:0;background:#ffe8ed;color:#b42318;border-radius:8px;padding:6px 9px">حذف</button></div>`).join('')+`<div style="margin-top:14px;padding:14px;background:#eaf4ff;border-radius:12px;font-weight:bold;color:#0755b8;text-align:center">إجمالي الطلب: ${cartTotal().toFixed(2)} ج.م</div>`;
+}
+function removeCartItem(i){cart.splice(i,1);update();draw();render()}
+function chg(i,n){
+ const x=cart[i];if(!x)return;
+ const m=map(x.raw);
+ const opt=unitOptions(m).find(o=>o.key===x.unitKey);
+ const max=opt?opt.stock:Infinity;
+ x.qty=Math.max(0,Math.min(max,x.qty+n));
+ if(x.qty<=0)cart.splice(i,1);
+ update();draw();render();
+}
 async function authCustomer(){
  const email=$('email').value.trim(),password=$('password').value;
  if(!email||password.length<8)throw Error('اكتب البريد الإلكتروني وكلمة مرور من 8 أحرف على الأقل');
