@@ -436,7 +436,7 @@ async function load(){
 }
 function render(){
  const q=$('q').value;
- const a=meds.filter(m=>(filter==='all'||(filter==='available'&&avail(m))||(filter==='otc'&&norm(m.otc).includes('otc')))&&matchesQuery(m,q));
+ const a=meds.filter(m=>avail(m)&&matchesQuery(m,q));
  const visible=q.trim()?a:a.slice(0,100);
  $('grid').innerHTML=visible.length?visible.map(card).join(''):'<div class="empty">لم نجد دواء مطابقًا. جرّب اسم الدواء أو جزءًا منه أو المادة الفعالة.</div>';
 }
