@@ -427,7 +427,7 @@ async function load(){
  try{
   setStatus('جاري تحميل مخزون الصيدلية...');
   const rows=await loadInventoryRows();
-  meds=rows.map(r=>{const m=map(r);m.id=r.item_key||r.code||r.barcode||r.name_ar||r.name_en;return m;});
+  meds=rows.map(r=>{const m=map(r);m.id=r.item_key||r.code||r.barcode||r.name_ar||r.name_en;return m;}).filter(avail);
   render();setStatus('تم تحميل '+meds.length+' صنف من مخزون الصيدلية');
  }catch(e){
   console.error('OLD pharmacy inventory load error:',e);render();
