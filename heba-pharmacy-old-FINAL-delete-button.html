@@ -804,7 +804,8 @@ async function syncInventoryToCloud(){
         updated_at:new Date().toISOString()
       };
     });
-    if(!rows.length)return;
+    // حتى لو كانت القائمة فارغة، يجب تنفيذ الحذف الكامل من السحابة.
+    // لا نخرج هنا لأن الخروج المبكر كان يمنع حذف الأصناف المحذوفة.
 
     // مزامنة كاملة: أي صنف تم حذفه من مخزون البرنامج القديم يُحذف أيضًا
     // من pharmacy_inventory، حتى لا يظهر للعميل بعد حذفه من الصيدلية.
@@ -1050,21 +1051,49 @@ window.updateInventoryRowStatus = function(idx){
   status.innerHTML = inventoryStatus(q1 + q2);
 };
 
-window.deleteInventoryRow = function(idx, btn){
+window.deleteInventoryRow = async function(idx, btn){
   const item = inventoryA[idx];
   if(!item) return;
 
   const name = item.name_ar || item.name_en || "هذا الصنف";
-  if(!confirm("سيتم حذف «" + name + "» من مخزون الصيدلية نهائيًا. هل تريد المتابعة؟")) return;
+  if(!confirm("سيتم حذف «" + name + "» من مخزون الصيدلية نهائيًا، ولن يعود بعد تحديث الصفحة. هل تريد المتابعة؟")) return;
+
+  const oldText = btn ? btn.textContent : "🗑️ حذف";
+  if(btn){ btn.disabled = true; btn.textContent = "جارٍ الحذف..."; }
+
+  const oldItem = JSON.parse(JSON.stringify(item));
+  const oldIndex = idx;
 
   try{
-    const imageKey = inventoryImageKey(item);
-    localStorage.removeItem(imageKey);
-  }catch(e){}
+    // احذف من القائمة المحلية أولًا ثم نفّذ مزامنة كاملة؛
+    // المزامنة ستحذف السجل المقابل من pharmacy_inventory في Supabase.
+    inventoryA.splice(idx, 1);
+    saveInventoryA();
+    renderInventory();
 
-  inventoryA.splice(idx, 1);
-  saveInventoryA();
-  renderInventory();
+    await syncInventoryToCloud();
+
+    const st = document.getElementById("cloudSyncStatus");
+    if(st && String(st.textContent||"").indexOf("تعذر") !== -1){
+      throw new Error("تعذر حفظ الحذف على السحابة");
+    }
+
+    try{
+      const imageKey = inventoryImageKey(oldItem);
+      localStorage.removeItem(imageKey);
+    }catch(e){}
+
+    alert("✅ تم حذف «" + name + "» وحفظ الحذف نهائيًا.");
+  }catch(e){
+    // لو فشل الحفظ السحابي، أعد الصنف محليًا حتى لا نعرض حالة مضللة.
+    inventoryA.splice(Math.min(oldIndex, inventoryA.length), 0, oldItem);
+    localStorage.setItem(INVENTORY_KEY, JSON.stringify(inventoryA));
+    renderInventory();
+    alert("⚠️ لم يتم تثبيت الحذف على السحابة. تم إرجاع الصنف كما كان. جرّب مرة أخرى.");
+    console.warn("Delete inventory row:", e);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = oldText; }
+  }
 };
 
 window.saveInventoryRow = function(idx, btn){
