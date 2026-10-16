@@ -414,14 +414,15 @@ function matchesQuery(m,q){
  return norm(q).split(' ').filter(Boolean).every(w=>hay.includes(w)||compactHay.includes(compact(w)));
 }
 async function loadInventoryRows(){
- const all=[],pageSize=1000;
- for(let from=0;;from+=pageSize){
-  const rows=await apiOld('/rest/v1/pharmacy_inventory?select=*&order=name_ar.asc&limit='+pageSize,
-   {headers:{'Cache-Control':'no-cache','Range':from+'-'+(from+pageSize-1),'Prefer':'count=exact'}});
-  const batch=Array.isArray(rows)?rows:[];all.push(...batch);
-  if(batch.length<pageSize)break;
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),12000);
+ try{
+  const rows=await apiOld('/rest/v1/pharmacy_inventory?select=*&order=name_ar.asc&limit=1000',
+   {headers:{'Cache-Control':'no-cache'},signal:controller.signal});
+  return Array.isArray(rows)?rows:[];
+ }finally{
+  clearTimeout(timer);
  }
- return all;
 }
 async function load(){
  try{
