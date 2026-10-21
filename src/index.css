@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+:root {
+  --n: #0755b8;
+  --p: #f20c69;
+  --bg: #f5f9ff;
+  --ink: #15345b;
+  --blue: #0866cf;
+  --pale: #eaf4ff;
+}
+
+body {
+  margin: 0;
+  font-family: Tahoma, Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: linear-gradient(180deg, #fff 0, #f5f9ff 60%, #fff 100%);
+  color: #15345b;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar for horizontal chips */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

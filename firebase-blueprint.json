@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase orders for medicines and health products",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "customer_name": { "type": "string", "maxLength": 150 },
+        "customer_phone": { "type": "string", "maxLength": 30 },
+        "address": { "type": "string", "maxLength": 500 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["new", "processing", "completed", "cancelled"] },
+        "user_id": { "type": "string", "maxLength": 128 },
+        "created_at": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["customer_name", "customer_phone", "address", "total", "status", "created_at"]
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "Registered customer profiles",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "full_name": { "type": "string", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "address": { "type": "string", "maxLength": 500 },
+        "total_orders": { "type": "number" },
+        "total_spent": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "created_at": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["full_name", "phone", "created_at"]
+    },
+    "MissingMedicine": {
+      "title": "MissingMedicine",
+      "description": "Requests for unavailable medicines submitted by customers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "medicine_name": { "type": "string", "maxLength": 200 },
+        "customer_phone": { "type": "string", "maxLength": 30 },
+        "customer_name": { "type": "string", "maxLength": 150 },
+        "notes": { "type": "string", "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["pending", "contacted", "provided", "cancelled"] },
+        "created_at": { "type": "string", "maxLength": 60 }
+      },
+      "required": ["medicine_name", "customer_phone", "created_at"]
+    },
+    "PharmacySetting": {
+      "title": "PharmacySetting",
+      "description": "Public store configuration (name, phone, whatsapp, address)",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 200 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "whatsapp": { "type": "string", "maxLength": 30 },
+        "address": { "type": "string", "maxLength": 500 }
+      }
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": { "$ref": "entities/Order" },
+      "description": "Customer purchase orders"
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "entities/Customer" },
+      "description": "Registered pharmacy customers"
+    },
+    "/missing_medicines/{requestId}": {
+      "schema": { "$ref": "entities/MissingMedicine" },
+      "description": "Missing medicines requested by clients"
+    },
+    "/pharmacy_settings/{settingId}": {
+      "schema": { "$ref": "entities/PharmacySetting" },
+      "description": "Pharmacy contact details and metadata"
+    }
+  }
+}

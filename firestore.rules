@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if isValidId(orderId)
+        && request.resource.data.customer_name is string
+        && request.resource.data.customer_name.size() > 0
+        && request.resource.data.customer_phone is string
+        && request.resource.data.customer_phone.size() > 0
+        && request.resource.data.address is string
+        && request.resource.data.total is number;
+      allow update: if isValidId(orderId);
+      allow delete: if false;
+    }
+
+    // Registered Customers Collection
+    match /customers/{customerId} {
+      allow read: if true;
+      allow create: if isValidId(customerId)
+        && request.resource.data.full_name is string
+        && request.resource.data.phone is string;
+      allow update: if isValidId(customerId);
+      allow delete: if false;
+    }
+
+    // Missing Medicine Requests
+    match /missing_medicines/{requestId} {
+      allow read: if true;
+      allow create: if isValidId(requestId)
+        && request.resource.data.medicine_name is string
+        && request.resource.data.customer_phone is string;
+      allow update: if isValidId(requestId);
+      allow delete: if false;
+    }
+
+    // Pharmacy Settings
+    match /pharmacy_settings/{settingId} {
+      allow read: if true;
+      allow write: if isValidId(settingId);
+    }
+  }
+}

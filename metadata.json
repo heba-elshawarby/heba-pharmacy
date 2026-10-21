@@ -1,0 +1,7 @@
+{
+  "name": "صيدلية د. هبه الشواربي",
+  "description": "تطبيق صيدلية د. هبه الشواربي لطلب الأدوية والبحث عن البدائل وإدارة مخزون الصيدلية",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
